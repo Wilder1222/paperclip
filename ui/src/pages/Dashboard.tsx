@@ -272,7 +272,9 @@ export function Dashboard() {
                 <span>
                   {data.costs.monthBudgetCents > 0
                     ? `${data.costs.monthUtilizationPercent}% of ${formatCents(data.costs.monthBudgetCents)} budget`
-                    : "Unlimited budget"}
+                    : data.costs.projectedMonthEndCents > 0
+                      ? `~${formatCents(data.costs.projectedMonthEndCents)} projected this month`
+                      : "Unlimited budget"}
                 </span>
               }
             />
@@ -290,6 +292,38 @@ export function Dashboard() {
               }
             />
           </div>
+
+          {/* Monthly budget / spend progress bar */}
+          {data.costs.monthBudgetCents > 0 ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Monthly budget</span>
+                <span>{formatCents(data.costs.monthSpendCents)} / {formatCents(data.costs.monthBudgetCents)}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-[width,background-color] duration-300",
+                    data.costs.monthUtilizationPercent > 90
+                      ? "bg-red-400"
+                      : data.costs.monthUtilizationPercent > 70
+                        ? "bg-yellow-400"
+                        : "bg-emerald-400",
+                  )}
+                  style={{ width: `${Math.min(100, data.costs.monthUtilizationPercent)}%` }}
+                />
+              </div>
+              {data.costs.projectedMonthEndCents > data.costs.monthBudgetCents ? (
+                <p className="text-xs text-yellow-400">
+                  At current rate, projected month-end: ~{formatCents(data.costs.projectedMonthEndCents)} — over budget
+                </p>
+              ) : null}
+            </div>
+          ) : data.costs.projectedMonthEndCents > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              At current rate ({data.costs.daysElapsed}/{data.costs.daysInMonth} days elapsed), projected month-end: ~{formatCents(data.costs.projectedMonthEndCents)}
+            </p>
+          ) : null}
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <ChartCard title="Run Activity" subtitle="Last 14 days">

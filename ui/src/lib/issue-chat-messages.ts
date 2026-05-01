@@ -45,6 +45,7 @@ export interface IssueChatLinkedRun {
   finishedAt?: Date | string | null;
   hasStoredOutput?: boolean;
   logBytes?: number | null;
+  nextAction?: string | null;
 }
 
 export interface IssueChatTranscriptEntry {
@@ -510,11 +511,14 @@ function runDurationLabel(run: {
 
 function createHistoricalRunMessage(run: IssueChatLinkedRun, agentMap?: Map<string, Agent>) {
   const agentName = run.agentName ?? agentMap?.get(run.agentId)?.name ?? run.agentId.slice(0, 8);
+  const summaryText = run.nextAction
+    ? `${agentName} run ${run.runId.slice(0, 8)} ${formatStatusLabel(run.status)} — ${run.nextAction}`
+    : `${agentName} run ${run.runId.slice(0, 8)} ${formatStatusLabel(run.status)}`;
   const message: ThreadSystemMessage = {
     id: `run:${run.runId}`,
     role: "system",
     createdAt: toDate(runTimestamp(run)),
-    content: [{ type: "text", text: `${agentName} run ${run.runId.slice(0, 8)} ${formatStatusLabel(run.status)}` }],
+    content: [{ type: "text", text: summaryText }],
     metadata: {
       custom: {
         kind: "run",

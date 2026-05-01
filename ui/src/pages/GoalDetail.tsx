@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { goalsApi } from "../api/goals";
 import { projectsApi } from "../api/projects";
 import { assetsApi } from "../api/assets";
+import { agentsApi } from "../api/agents";
 import { usePanel } from "../context/PanelContext";
 import { useCompany } from "../context/CompanyContext";
 import { useDialogActions } from "../context/DialogContext";
@@ -18,7 +19,7 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { cn, projectUrl } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, SlidersHorizontal } from "lucide-react";
+import { Plus, SlidersHorizontal, GitBranch } from "lucide-react";
 import type { Goal, Project } from "@paperclipai/shared";
 
 interface GoalPropertiesToggleButtonProps {
@@ -49,7 +50,7 @@ export function GoalPropertiesToggleButton({
 export function GoalDetail() {
   const { goalId } = useParams<{ goalId: string }>();
   const { selectedCompanyId, setSelectedCompanyId } = useCompany();
-  const { openNewGoal } = useDialogActions();
+  const { openNewGoal, openNewIssue } = useDialogActions();
   const { openPanel, closePanel, panelVisible, setPanelVisible } = usePanel();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
@@ -76,6 +77,17 @@ export function GoalDetail() {
     queryFn: () => projectsApi.list(resolvedCompanyId!),
     enabled: !!resolvedCompanyId
   });
+
+  const { data: allAgents } = useQuery({
+    queryKey: queryKeys.agents.list(resolvedCompanyId!),
+    queryFn: () => agentsApi.list(resolvedCompanyId!),
+    enabled: !!resolvedCompanyId
+  });
+
+  // Pick a CEO / primary agent to pre-assign decomposition tasks
+  const ceoAgent = allAgents?.find((a) =>
+    a.role === "ceo" || /ceo/i.test(a.name)
+  ) ?? allAgents?.[0] ?? null;
 
   useEffect(() => {
     if (!goal?.companyId || goal.companyId === selectedCompanyId) return;
@@ -147,7 +159,22 @@ export function GoalDetail() {
             {goal.level}
           </span>
           <StatusBadge status={goal.status} />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                openNewIssue({
+                  goalId: goalId,
+                  assigneeAgentId: ceoAgent?.id,
+                  title: `Decompose: ${goal.title}`,
+                  description: `Break down the goal "${goal.title}" into concrete sub-goals, projects, and tasks. For each item, propose an owner, priority, and estimated scope.`,
+                })
+              }
+            >
+              <GitBranch className="h-3.5 w-3.5 mr-1.5" />
+              Decompose Goal
+            </Button>
             <GoalPropertiesToggleButton
               panelVisible={panelVisible}
               onShowProperties={() => setPanelVisible(true)}
