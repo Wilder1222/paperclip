@@ -15,6 +15,7 @@ export interface CostEvent {
   model: string;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheCreationTokens: number;
   outputTokens: number;
   costCents: number;
   occurredAt: Date;
@@ -35,6 +36,7 @@ export interface CostByAgent {
   costCents: number;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheCreationTokens: number;
   outputTokens: number;
   apiRunCount: number;
   subscriptionRunCount: number;
@@ -51,6 +53,7 @@ export interface CostByProviderModel {
   costCents: number;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheCreationTokens: number;
   outputTokens: number;
   apiRunCount: number;
   subscriptionRunCount: number;
@@ -64,6 +67,7 @@ export interface CostByBiller {
   costCents: number;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheCreationTokens: number;
   outputTokens: number;
   apiRunCount: number;
   subscriptionRunCount: number;
@@ -85,6 +89,7 @@ export interface CostByAgentModel {
   costCents: number;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheCreationTokens: number;
   outputTokens: number;
 }
 
@@ -99,6 +104,7 @@ export interface CostWindowSpendRow {
   costCents: number;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheCreationTokens: number;
   outputTokens: number;
 }
 
@@ -109,5 +115,6 @@ export interface CostByProject {
   costCents: number;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheCreationTokens: number;
   outputTokens: number;
 }

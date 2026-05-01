@@ -519,6 +519,20 @@ export function Costs() {
       0,
     );
 
+  const cacheReadTotal =
+    (spendData?.byAgent ?? []).reduce((sum, row) => sum + row.cachedInputTokens, 0);
+
+  const cacheCreationTotal =
+    (spendData?.byAgent ?? []).reduce((sum, row) => sum + row.cacheCreationTokens, 0);
+
+  const cacheableInputTotal =
+    (spendData?.byAgent ?? []).reduce((sum, row) => sum + row.inputTokens + row.cachedInputTokens, 0);
+
+  const cacheHitRatePct =
+    cacheableInputTotal > 0
+      ? Math.round((cacheReadTotal / cacheableInputTotal) * 100)
+      : null;
+
   const topFinanceEvents = (financeData?.events ?? []) as FinanceEvent[];
   const budgetPolicies = budgetData?.policies ?? [];
   const activeBudgetIncidents = budgetData?.activeIncidents ?? [];
@@ -679,6 +693,14 @@ export function Costs() {
                         <div className="mt-1 text-lg font-medium tabular-nums">
                           {formatTokens(inferenceTokenTotal)}
                         </div>
+                        {cacheHitRatePct !== null ? (
+                          <div className="mt-1 text-[11px] text-muted-foreground">
+                            cache hit {cacheHitRatePct}%
+                            {cacheCreationTotal > 0 ? (
+                              <> · {formatTokens(cacheCreationTotal)} written</>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     {spendData?.summary.budgetCents && spendData.summary.budgetCents > 0 ? (
@@ -749,6 +771,11 @@ export function Costs() {
                                 <div className="text-xs text-muted-foreground">
                                   in {formatTokens(row.inputTokens + row.cachedInputTokens)} · out {formatTokens(row.outputTokens)}
                                 </div>
+                                {row.cacheCreationTokens > 0 ? (
+                                  <div className="text-xs text-muted-foreground">
+                                    {formatTokens(row.cacheCreationTokens)} written to cache
+                                  </div>
+                                ) : null}
                                 {(row.apiRunCount > 0 || row.subscriptionRunCount > 0) ? (
                                   <div className="text-xs text-muted-foreground">
                                     {row.apiRunCount > 0 ? `${row.apiRunCount} api` : "0 api"}
