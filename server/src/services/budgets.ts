@@ -159,14 +159,16 @@ async function computeObservedAmount(
       case "output_tokens":
         return costEvents.outputTokens;
       case "total_tokens":
-        return null; // handled separately
+        return null; // handled via separate query below
       case "billed_cents":
+        return costEvents.costCents;
       default:
+        // Fallback for any future metric values; treat as billed_cents
         return costEvents.costCents;
     }
   })();
 
-  if (policy.metric === "total_tokens") {
+  if (policy.metric === "total_tokens" || sumColumn === null) {
     const [row] = await db
       .select({
         total: sql<number>`coalesce(sum(${costEvents.inputTokens} + ${costEvents.cachedInputTokens} + ${costEvents.outputTokens}), 0)::double precision`,
@@ -178,7 +180,7 @@ async function computeObservedAmount(
 
   const [row] = await db
     .select({
-      total: sql<number>`coalesce(sum(${sumColumn!}), 0)::double precision`,
+      total: sql<number>`coalesce(sum(${sumColumn}), 0)::double precision`,
     })
     .from(costEvents)
     .where(and(...conditions));
