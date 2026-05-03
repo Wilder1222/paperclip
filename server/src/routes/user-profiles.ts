@@ -123,7 +123,7 @@ function dayKeyExpr(dateSql: ReturnType<typeof sql>) {
   return sql<string>`to_char(date_trunc('day', ${dateSql}), 'YYYY-MM-DD')`;
 }
 
-function sumNumber(column: typeof costEvents.costCents | typeof costEvents.inputTokens | typeof costEvents.cachedInputTokens | typeof costEvents.outputTokens) {
+function sumNumber(column: typeof costEvents.costCents | typeof costEvents.inputTokens | typeof costEvents.cachedInputTokens | typeof costEvents.cacheCreationTokens | typeof costEvents.outputTokens) {
   return sql<number>`coalesce(sum(${column}), 0)::double precision`;
 }
 

@@ -337,3 +337,13 @@ export type {
   PluginDatabaseNamespaceMode,
   PluginDatabaseNamespaceStatus,
 } from "./plugin.js";
+export type {
+  MemoryScopeType,
+  MemoryOperationKind,
+  MemoryOperationStatus,
+  MemoryBinding,
+  MemoryOperation,
+  MemoryUsageSummary,
+  CreateMemoryBindingInput,
+  UpdateMemoryBindingInput,
+} from "./memory.js";

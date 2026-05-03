@@ -143,8 +143,6 @@ async function computeObservedAmount(
   db: Db,
   policy: Pick<PolicyRow, "companyId" | "scopeType" | "scopeId" | "windowKind" | "metric">,
 ) {
-  if (policy.metric !== "billed_cents") return 0;
-
   const conditions = [eq(costEvents.companyId, policy.companyId)];
   if (policy.scopeType === "agent") conditions.push(eq(costEvents.agentId, policy.scopeId));
   if (policy.scopeType === "project") conditions.push(eq(costEvents.projectId, policy.scopeId));
@@ -154,9 +152,35 @@ async function computeObservedAmount(
     conditions.push(lt(costEvents.occurredAt, end));
   }
 
+  const sumColumn = (() => {
+    switch (policy.metric) {
+      case "input_tokens":
+        return costEvents.inputTokens;
+      case "output_tokens":
+        return costEvents.outputTokens;
+      case "total_tokens":
+        return null; // handled via separate query below
+      case "billed_cents":
+        return costEvents.costCents;
+      default:
+        // Fallback for any future metric values; treat as billed_cents
+        return costEvents.costCents;
+    }
+  })();
+
+  if (policy.metric === "total_tokens" || sumColumn === null) {
+    const [row] = await db
+      .select({
+        total: sql<number>`coalesce(sum(${costEvents.inputTokens} + ${costEvents.cachedInputTokens} + ${costEvents.outputTokens}), 0)::double precision`,
+      })
+      .from(costEvents)
+      .where(and(...conditions));
+    return Number(row?.total ?? 0);
+  }
+
   const [row] = await db
     .select({
-      total: sql<number>`coalesce(sum(${costEvents.costCents}), 0)::double precision`,
+      total: sql<number>`coalesce(sum(${sumColumn}), 0)::double precision`,
     })
     .from(costEvents)
     .where(and(...conditions));

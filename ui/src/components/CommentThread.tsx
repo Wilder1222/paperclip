@@ -42,6 +42,7 @@ interface LinkedRunItem {
   agentId: string;
   createdAt: Date | string;
   startedAt: Date | string | null;
+  nextAction?: string | null;
   environment?: {
     id: string;
     name: string;
@@ -618,7 +619,7 @@ const TimelineList = memo(function TimelineList({
           const run = item.run;
           const actorName = agentMap?.get(run.agentId)?.name ?? run.agentId.slice(0, 8);
           return (
-            <div id={`run-${run.runId}`} key={`run:${run.runId}`} className="flex items-center gap-2.5 py-1.5">
+            <div id={`run-${run.runId}`} key={`run:${run.runId}`} className="flex items-start gap-2.5 py-1.5">
               <Avatar size="sm">
                 <AvatarFallback>{initialsForName(actorName)}</AvatarFallback>
               </Avatar>
@@ -645,6 +646,11 @@ const TimelineList = memo(function TimelineList({
                     {timeAgo(runTimestamp(run))}
                   </a>
                 </div>
+                {run.nextAction ? (
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                    {run.nextAction}
+                  </p>
+                ) : null}
               </div>
               {run.environment || run.environmentLease ? (
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">

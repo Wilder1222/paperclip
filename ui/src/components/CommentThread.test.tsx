@@ -138,7 +138,7 @@ describe("CommentThread", () => {
     const runRow = container.querySelector("#run-run-12345678abcd") as HTMLDivElement | null;
     expect(runRow).not.toBeNull();
     expect(runRow?.className).toContain("py-1.5");
-    expect(runRow?.className).toContain("items-center");
+    expect(runRow?.className).toContain("items-start");
     expect(runRow?.className).not.toContain("border");
     expect(container.textContent).toContain("CodexCoder");
     expect(container.textContent).toContain("succeeded");

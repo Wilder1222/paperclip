@@ -293,6 +293,16 @@ export {
 } from "./cost.js";
 
 export {
+  MEMORY_SCOPE_TYPES,
+  MEMORY_OPERATION_KINDS,
+  MEMORY_OPERATION_STATUSES,
+  createMemoryBindingSchema,
+  updateMemoryBindingSchema,
+  type CreateMemoryBinding,
+  type UpdateMemoryBinding,
+} from "./memory.js";
+
+export {
   createFinanceEventSchema,
   type CreateFinanceEvent,
 } from "./finance.js";

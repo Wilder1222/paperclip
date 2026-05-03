@@ -96,6 +96,13 @@ export function dashboardService(db: Db) {
         );
 
       const monthSpendCents = Number(monthSpend);
+
+      // Compute projected month-end spend based on current burn rate
+      const daysElapsed = Math.max(1, now.getUTCDate());
+      const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
+      const dailyBurnCents = monthSpendCents / daysElapsed;
+      const projectedMonthEndCents = Math.round(dailyBurnCents * daysInMonth);
+
       const runActivityDayExpr = sql<string>`to_char(${heartbeatRuns.createdAt} at time zone 'UTC', 'YYYY-MM-DD')`;
       const runActivityRows = await db
         .select({
@@ -147,6 +154,9 @@ export function dashboardService(db: Db) {
           monthSpendCents,
           monthBudgetCents: company.budgetMonthlyCents,
           monthUtilizationPercent: Number(utilization.toFixed(2)),
+          projectedMonthEndCents,
+          daysElapsed,
+          daysInMonth,
         },
         pendingApprovals,
         budgets: {

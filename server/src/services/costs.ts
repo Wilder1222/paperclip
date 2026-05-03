@@ -12,7 +12,7 @@ export interface CostDateRange {
 const METERED_BILLING_TYPE = "metered_api";
 const SUBSCRIPTION_BILLING_TYPES = ["subscription_included", "subscription_overage"] as const;
 
-function sumAsNumber(column: typeof costEvents.costCents | typeof costEvents.inputTokens | typeof costEvents.cachedInputTokens | typeof costEvents.outputTokens) {
+function sumAsNumber(column: typeof costEvents.costCents | typeof costEvents.inputTokens | typeof costEvents.cachedInputTokens | typeof costEvents.cacheCreationTokens | typeof costEvents.outputTokens) {
   return sql<number>`coalesce(sum(${column}), 0)::double precision`;
 }
 
@@ -70,6 +70,7 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           biller: data.biller ?? data.provider,
           billingType: data.billingType ?? "unknown",
           cachedInputTokens: data.cachedInputTokens ?? 0,
+          cacheCreationTokens: data.cacheCreationTokens ?? 0,
         })
         .returning()
         .then((rows) => rows[0]);
@@ -147,6 +148,7 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           costCents: sumAsNumber(costEvents.costCents),
           inputTokens: sumAsNumber(costEvents.inputTokens),
           cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
+          cacheCreationTokens: sumAsNumber(costEvents.cacheCreationTokens),
           outputTokens: sumAsNumber(costEvents.outputTokens),
           apiRunCount:
             sql<number>`count(distinct case when ${costEvents.billingType} = ${METERED_BILLING_TYPE} then ${costEvents.heartbeatRunId} end)::int`,
@@ -180,6 +182,7 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           costCents: sumAsNumber(costEvents.costCents),
           inputTokens: sumAsNumber(costEvents.inputTokens),
           cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
+          cacheCreationTokens: sumAsNumber(costEvents.cacheCreationTokens),
           outputTokens: sumAsNumber(costEvents.outputTokens),
           apiRunCount:
             sql<number>`count(distinct case when ${costEvents.billingType} = ${METERED_BILLING_TYPE} then ${costEvents.heartbeatRunId} end)::int`,
@@ -209,6 +212,7 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           costCents: sumAsNumber(costEvents.costCents),
           inputTokens: sumAsNumber(costEvents.inputTokens),
           cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
+          cacheCreationTokens: sumAsNumber(costEvents.cacheCreationTokens),
           outputTokens: sumAsNumber(costEvents.outputTokens),
           apiRunCount:
             sql<number>`count(distinct case when ${costEvents.billingType} = ${METERED_BILLING_TYPE} then ${costEvents.heartbeatRunId} end)::int`,
@@ -251,6 +255,7 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
               costCents: sumAsNumber(costEvents.costCents),
               inputTokens: sumAsNumber(costEvents.inputTokens),
               cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
+              cacheCreationTokens: sumAsNumber(costEvents.cacheCreationTokens),
               outputTokens: sumAsNumber(costEvents.outputTokens),
             })
             .from(costEvents)
@@ -271,6 +276,7 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
             costCents: row.costCents,
             inputTokens: row.inputTokens,
             cachedInputTokens: row.cachedInputTokens,
+            cacheCreationTokens: row.cacheCreationTokens,
             outputTokens: row.outputTokens,
           }));
         }),
@@ -299,6 +305,7 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           costCents: sumAsNumber(costEvents.costCents),
           inputTokens: sumAsNumber(costEvents.inputTokens),
           cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
+          cacheCreationTokens: sumAsNumber(costEvents.cacheCreationTokens),
           outputTokens: sumAsNumber(costEvents.outputTokens),
         })
         .from(costEvents)
@@ -355,6 +362,7 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
           costCents: costCentsExpr,
           inputTokens: sumAsNumber(costEvents.inputTokens),
           cachedInputTokens: sumAsNumber(costEvents.cachedInputTokens),
+          cacheCreationTokens: sumAsNumber(costEvents.cacheCreationTokens),
           outputTokens: sumAsNumber(costEvents.outputTokens),
         })
         .from(costEvents)

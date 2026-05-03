@@ -587,6 +587,18 @@ export function OnboardingWizard() {
         });
       }
 
+      // Auto-wake the agent so the first run starts immediately after onboarding
+      try {
+        await agentsApi.wakeup(
+          createdAgentId,
+          { source: "on_demand", triggerDetail: "manual" },
+          createdCompanyId,
+        );
+      } catch (wakeupErr) {
+        // Non-critical: navigation still proceeds even if the wakeup call fails
+        console.warn("Onboarding: failed to auto-wake agent after task creation", wakeupErr);
+      }
+
       setSelectedCompanyId(createdCompanyId);
       reset();
       closeOnboarding();

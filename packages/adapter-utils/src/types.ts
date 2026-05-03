@@ -31,6 +31,8 @@ export interface UsageSummary {
   inputTokens: number;
   outputTokens: number;
   cachedInputTokens?: number;
+  /** Tokens written to the prompt cache on this request (cost is billed separately from reads). */
+  cacheCreationTokens?: number;
 }
 
 export type AdapterBillingType =

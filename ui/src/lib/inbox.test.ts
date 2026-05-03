@@ -291,6 +291,9 @@ const dashboard: DashboardSummary = {
     monthSpendCents: 900,
     monthBudgetCents: 1000,
     monthUtilizationPercent: 90,
+    projectedMonthEndCents: 900,
+    daysElapsed: 15,
+    daysInMonth: 31,
   },
   pendingApprovals: 1,
   budgets: {
