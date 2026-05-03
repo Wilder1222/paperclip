@@ -594,8 +594,9 @@ export function OnboardingWizard() {
           { source: "on_demand", triggerDetail: "manual" },
           createdCompanyId,
         );
-      } catch {
+      } catch (wakeupErr) {
         // Non-critical: navigation still proceeds even if the wakeup call fails
+        console.warn("Onboarding: failed to auto-wake agent after task creation", wakeupErr);
       }
 
       setSelectedCompanyId(createdCompanyId);

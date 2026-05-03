@@ -86,7 +86,7 @@ export function GoalDetail() {
 
   // Pick a CEO / primary agent to pre-assign decomposition tasks
   const ceoAgent = allAgents?.find((a) =>
-    a.role === "ceo" || /ceo/i.test(a.name)
+    a.role === "ceo" || /\bceo\b/i.test(a.name)
   ) ?? allAgents?.[0] ?? null;
 
   useEffect(() => {
