@@ -24,6 +24,9 @@ export interface DashboardSummary {
     monthSpendCents: number;
     monthBudgetCents: number;
     monthUtilizationPercent: number;
+    projectedMonthEndCents: number;
+    daysElapsed: number;
+    daysInMonth: number;
   };
   pendingApprovals: number;
   budgets: {
