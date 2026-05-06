@@ -312,7 +312,80 @@ This starts the API server at `http://localhost:3100`. An embedded PostgreSQL da
 
 <br/>
 
-## FAQ
+## Docker Deployment
+
+Run Paperclip with Docker and PostgreSQL — no Node.js required on the host.
+
+### One-click deploy (Linux / macOS / CentOS)
+
+```bash
+git clone https://github.com/paperclipai/paperclip.git
+cd paperclip
+bash deploy.sh
+```
+
+The script will:
+- Install Docker automatically if missing (Linux only)
+- Generate a secure `BETTER_AUTH_SECRET` and create `.env`
+- Build the image and start both Paperclip and PostgreSQL
+
+Open **http://localhost:3100** when complete.
+
+**Options:**
+
+```bash
+bash deploy.sh --port 8080                     # custom port
+bash deploy.sh --url https://example.com       # public domain
+bash deploy.sh --public                        # internet-facing mode
+```
+
+### One-click deploy (Windows)
+
+```powershell
+git clone https://github.com/paperclipai/paperclip.git
+cd paperclip
+.\deploy.ps1
+```
+
+Options: `-Port 8080`, `-Url "https://example.com"`, `-Public`
+
+### Manual Docker deploy
+
+```bash
+# 1. Copy and configure environment
+cp .env.example .env
+# Fill in BETTER_AUTH_SECRET (required):
+openssl rand -hex 32   # paste the output into .env
+
+# 2. Build and start
+docker compose up -d --build
+
+# 3. Open the board
+open http://localhost:3100
+```
+
+### Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BETTER_AUTH_SECRET` | — | **Required.** Random 32-byte hex string. Run `openssl rand -hex 32` to generate. |
+| `PAPERCLIP_PUBLIC_URL` | `http://localhost:3100` | Public URL for the instance (required for non-localhost deployments). |
+| `PAPERCLIP_DEPLOYMENT_MODE` | `authenticated` | `local_trusted` (no login) or `authenticated` (login required). |
+| `PAPERCLIP_DEPLOYMENT_EXPOSURE` | `private` | `private` (LAN/VPN) or `public` (internet-facing). |
+| `PORT` | `3100` | Host port to expose. |
+| `USER_UID` / `USER_GID` | `1000` | UID/GID for the container user — match your host user to avoid volume permission issues. |
+
+### Useful Docker commands
+
+```bash
+docker compose logs -f paperclip    # tail logs
+docker compose ps                   # check status
+docker compose down                 # stop
+docker compose up -d --build        # update & restart after git pull
+docker compose exec db pg_dump -U paperclip paperclip > backup.sql  # backup DB
+```
+
+<br/>
 
 **What does a typical setup look like?**
 Locally, a single Node.js process manages an embedded Postgres and local file storage. For production, point it at your own Postgres and deploy however you like. Configure projects, agents, and goals — the agents take care of the rest.
