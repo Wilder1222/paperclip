@@ -70,6 +70,7 @@ import { AgentIcon } from "../components/AgentIconPicker";
 import { IssueReferenceActivitySummary } from "../components/IssueReferenceActivitySummary";
 import { IssueRelatedWorkPanel } from "../components/IssueRelatedWorkPanel";
 import { IssueDocuments, useIssueDocumentCount } from "../components/IssueDocuments";
+import { IssueDeliverables, useIssueDeliverableCount } from "../components/IssueDeliverables";
 import { IssueProperties } from "../components/IssueProperties";
 import { IssueRunLedger } from "../components/IssueRunLedger";
 import { IssueWorkspaceCard } from "../components/IssueWorkspaceCard";
@@ -114,6 +115,7 @@ import {
   EyeOff,
   Hexagon,
   FileText,
+  Package,
   ListTree,
   MessageSquare,
   MoreHorizontal,
@@ -853,6 +855,21 @@ function DocumentsTabTrigger({ issueId }: { issueId: string }) {
     <TabsTrigger value="documents" className="gap-1.5">
       <FileText className="h-3.5 w-3.5" />
       Documents
+      {count !== undefined && count > 0 && (
+        <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-xs leading-none">
+          {count}
+        </span>
+      )}
+    </TabsTrigger>
+  );
+}
+
+function DeliverablesTabTrigger({ issueId }: { issueId: string }) {
+  const count = useIssueDeliverableCount(issueId);
+  return (
+    <TabsTrigger value="deliverables" className="gap-1.5">
+      <Package className="h-3.5 w-3.5" />
+      Deliverables
       {count !== undefined && count > 0 && (
         <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-xs leading-none">
           {count}
@@ -3424,6 +3441,7 @@ export function IssueDetail() {
             Related work
           </TabsTrigger>
           <DocumentsTabTrigger issueId={issue.id} />
+          <DeliverablesTabTrigger issueId={issue.id} />
           {issuePluginTabItems.map((item) => (
             <TabsTrigger key={item.value} value={item.value}>
               {item.label}
@@ -3505,6 +3523,10 @@ export function IssueDetail() {
 
         <TabsContent value="documents">
           <IssueDocuments issueId={issue.id} />
+        </TabsContent>
+
+        <TabsContent value="deliverables">
+          <IssueDeliverables issueId={issue.id} />
         </TabsContent>
 
         {activePluginTab && (

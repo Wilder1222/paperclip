@@ -17,6 +17,24 @@ const mockDocumentsApi = vi.hoisted(() => ({
 
 vi.mock("../api/documents", () => ({ documentsApi: mockDocumentsApi }));
 
+// Mock the issues API (used by useDocumentPendingApproval)
+const mockIssuesApi = vi.hoisted(() => ({
+  listInteractions: vi.fn().mockResolvedValue([]),
+  acceptInteraction: vi.fn(),
+  rejectInteraction: vi.fn(),
+}));
+
+vi.mock("../api/issues", () => ({ issuesApi: mockIssuesApi }));
+
+// Mock MarkdownBody to avoid ThemeProvider dependency
+vi.mock("./MarkdownBody", () => ({
+  MarkdownBody: ({ children }: { children?: string }) =>
+    <div data-testid="markdown-body">{children}</div>,
+}));
+
+// Required for React to treat this as a test environment and flush act() properly
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
 function makeDoc(overrides: Partial<IssueDocumentSummary> = {}): IssueDocumentSummary {
   return {
     id: "doc-1",
@@ -53,17 +71,26 @@ function renderComponent(issueId: string) {
   return container;
 }
 
+/** Flush microtasks and macrotasks so React Query can settle. */
+async function flushQueries() {
+  for (let i = 0; i < 2; i++) {
+    await act(async () => {
+      await Promise.resolve();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+  }
+}
+
 describe("IssueDocuments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIssuesApi.listInteractions.mockResolvedValue([]);
   });
 
   it("shows empty state when no documents", async () => {
     mockDocumentsApi.list.mockResolvedValue([]);
     const container = renderComponent("issue-1");
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushQueries();
     expect(container.textContent).toContain("No documents yet");
   });
 
@@ -71,9 +98,7 @@ describe("IssueDocuments", () => {
     const doc = makeDoc({ key: "summary", title: "Run Summary", latestRevisionNumber: 3 });
     mockDocumentsApi.list.mockResolvedValue([doc]);
     const container = renderComponent("issue-1");
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushQueries();
     expect(container.textContent).toContain("Run Summary");
     expect(container.textContent).toContain("v3");
   });
@@ -82,10 +107,9 @@ describe("IssueDocuments", () => {
     const planDoc = makeDoc({ key: "plan", title: "Execution Plan" });
     const summaryDoc = makeDoc({ id: "doc-2", key: "summary", title: "Run Summary" });
     mockDocumentsApi.list.mockResolvedValue([summaryDoc, planDoc]);
+    mockDocumentsApi.get.mockResolvedValue({ body: "" });
     const container = renderComponent("issue-1");
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushQueries();
     expect(container.textContent).toContain("plan");
     expect(container.textContent).toContain("Execution Plan");
   });
@@ -94,10 +118,9 @@ describe("IssueDocuments", () => {
     const planDoc = makeDoc({ key: "plan", title: "Execution Plan" });
     const summaryDoc = makeDoc({ id: "doc-2", key: "summary", title: "Run Summary" });
     mockDocumentsApi.list.mockResolvedValue([summaryDoc, planDoc]);
+    mockDocumentsApi.get.mockResolvedValue({ body: "" });
     const container = renderComponent("issue-1");
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushQueries();
     const text = container.textContent ?? "";
     const planIdx = text.indexOf("Execution Plan");
     const summaryIdx = text.indexOf("Run Summary");
