@@ -42,15 +42,34 @@ async function ensureParentDir(target: string): Promise<void> {
   await fs.mkdir(path.dirname(target), { recursive: true });
 }
 
+async function ensureSymlinkOrCopy(target: string, source: string): Promise<void> {
+  try {
+    await fs.symlink(source, target);
+  } catch (err) {
+    // Windows without Developer Mode / elevated privileges denies symlinks (EPERM/EACCES).
+    // Fall back to a plain file copy so the adapter still works.
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "EPERM" || code === "EACCES") {
+      await fs.copyFile(source, target);
+      return;
+    }
+    throw err;
+  }
+}
+
 async function ensureSymlink(target: string, source: string): Promise<void> {
   const existing = await fs.lstat(target).catch(() => null);
   if (!existing) {
     await ensureParentDir(target);
-    await fs.symlink(source, target);
+    await ensureSymlinkOrCopy(target, source);
     return;
   }
 
   if (!existing.isSymbolicLink()) {
+    // Keep fallback-copied files fresh when managed auth/config changes upstream.
+    if (existing.isFile()) {
+      await fs.copyFile(source, target);
+    }
     return;
   }
 
@@ -61,7 +80,7 @@ async function ensureSymlink(target: string, source: string): Promise<void> {
   if (resolvedLinkedPath === source) return;
 
   await fs.unlink(target);
-  await fs.symlink(source, target);
+  await ensureSymlinkOrCopy(target, source);
 }
 
 async function ensureCopiedFile(target: string, source: string): Promise<void> {
@@ -69,6 +88,102 @@ async function ensureCopiedFile(target: string, source: string): Promise<void> {
   if (existing) return;
   await ensureParentDir(target);
   await fs.copyFile(source, target);
+}
+
+function parseModelFromJson(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = parseModelFromJson(item);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const direct = ["model", "default_model", "openai_model", "codex_model", "model_id"] as const;
+  for (const key of direct) {
+    const raw = record[key];
+    if (typeof raw === "string" && raw.trim().length > 0) return raw.trim();
+  }
+
+  for (const nestedKey of ["openai", "codex", "models", "defaults", "profile", "profiles"]) {
+    const found = parseModelFromJson(record[nestedKey]);
+    if (found) return found;
+  }
+
+  for (const nested of Object.values(record)) {
+    const found = parseModelFromJson(nested);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function parseModelFromToml(content: string): { model: string | null; excerpt: string | null } {
+  const lines = content.split(/\r?\n/);
+  let currentSection = "";
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    if (line.startsWith("[") && line.endsWith("]")) {
+      currentSection = line.slice(1, -1).trim().toLowerCase();
+      continue;
+    }
+
+    const direct = /^\s*(?:model|default_model|openai_model|codex_model|model_id)\s*=\s*["']([^"']+)["']/i.exec(line);
+    if (direct?.[1]) return { model: direct[1].trim(), excerpt: rawLine.trim() };
+
+    const inModelSection = /(?:^|\.)(?:openai|codex|model|models|defaults)(?:\.|$)/i.test(currentSection);
+    if (inModelSection) {
+      const sectionModel = /^\s*model\s*=\s*["']([^"']+)["']/i.exec(line);
+      if (sectionModel?.[1]) return { model: sectionModel[1].trim(), excerpt: rawLine.trim() };
+    }
+  }
+
+  return { model: null, excerpt: null };
+}
+
+export async function readCodexCliModelConfig(codexHome?: string): Promise<{
+  model: string | null;
+  source: string | null;
+  content: string | null;
+}> {
+  const home = codexHome ?? path.join(os.homedir(), ".codex");
+
+  const configJsonPath = path.join(home, "config.json");
+  try {
+    const raw = await fs.readFile(configJsonPath, "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    const model = parseModelFromJson(parsed);
+    if (model) {
+      return {
+        model,
+        source: configJsonPath,
+        content: JSON.stringify({ model }, null, 2),
+      };
+    }
+  } catch {
+    // Ignore parse/read errors and continue to TOML fallback.
+  }
+
+  const configTomlPath = path.join(home, "config.toml");
+  try {
+    const raw = await fs.readFile(configTomlPath, "utf8");
+    const parsed = parseModelFromToml(raw);
+    if (parsed.model) {
+      return {
+        model: parsed.model,
+        source: configTomlPath,
+        content: parsed.excerpt,
+      };
+    }
+  } catch {
+    // Ignore parse/read errors and report no model.
+  }
+
+  return { model: null, source: null, content: null };
 }
 
 export async function prepareManagedCodexHome(

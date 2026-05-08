@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { constants as fsConstants, promises as fs, type Dirent } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { buildSshSpawnTarget, type SshRemoteExecutionSpec } from "./ssh.js";
 import type {
@@ -52,6 +53,123 @@ type ChildProcessWithEvents = ChildProcess & {
 function resolveProcessGroupId(child: ChildProcess) {
   if (process.platform === "win32") return null;
   return typeof child.pid === "number" && child.pid > 0 ? child.pid : null;
+}
+
+function readNonEmptyEnv(env: NodeJS.ProcessEnv, key: string): string | null {
+  const value = env[key];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function resolveHomeDirFromEnv(env: NodeJS.ProcessEnv): string | null {
+  const home = readNonEmptyEnv(env, "HOME");
+  if (home) return home;
+
+  const userProfile = readNonEmptyEnv(env, "USERPROFILE");
+  if (userProfile) return userProfile;
+
+  const homeDrive = readNonEmptyEnv(env, "HOMEDRIVE");
+  const homePath = readNonEmptyEnv(env, "HOMEPATH");
+  if (homeDrive && homePath) return `${homeDrive}${homePath}`;
+
+  return null;
+}
+
+function findOpenAiBaseUrlInObject(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) return null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findOpenAiBaseUrlInObject(item);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const directKeys = [
+    "OPENAI_BASE_URL",
+    "openai_base_url",
+    "openaiBaseUrl",
+    "openai_api_base",
+    "OPENAI_API_BASE",
+  ] as const;
+  for (const key of directKeys) {
+    const raw = record[key];
+    if (typeof raw === "string" && raw.trim().length > 0) return raw.trim();
+  }
+
+  for (const nestedKey of ["openai", "providers", "api", "endpoints", "llm"]) {
+    const nested = record[nestedKey];
+    const found = findOpenAiBaseUrlInObject(nested);
+    if (found) return found;
+  }
+
+  for (const nested of Object.values(record)) {
+    const found = findOpenAiBaseUrlInObject(nested);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function parseOpenAiBaseUrlFromCodexToml(content: string): string | null {
+  const lines = content.split(/\r?\n/);
+  let currentSection = "";
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    if (line.startsWith("[") && line.endsWith("]")) {
+      currentSection = line.slice(1, -1).trim().toLowerCase();
+      continue;
+    }
+
+    const direct = /^\s*(?:OPENAI_BASE_URL|openai_base_url|openaiBaseUrl|OPENAI_API_BASE|openai_api_base)\s*=\s*["']([^"']+)["']/i.exec(line);
+    if (direct?.[1]) return direct[1].trim();
+
+    const inOpenAiSection = /(?:^|\.)openai(?:\.|$)/i.test(currentSection);
+    if (inOpenAiSection) {
+      const sectionBaseUrl = /^\s*base_url\s*=\s*["']([^"']+)["']/i.exec(line);
+      if (sectionBaseUrl?.[1]) return sectionBaseUrl[1].trim();
+    }
+  }
+
+  return null;
+}
+
+function inferOpenAiBaseUrlFromLocalCliConfig(env: NodeJS.ProcessEnv): string | null {
+  const existingBase = readNonEmptyEnv(env, "OPENAI_BASE_URL") ?? readNonEmptyEnv(env, "OPENAI_API_BASE");
+  if (existingBase) return null;
+
+  const codexHome = readNonEmptyEnv(env, "CODEX_HOME")
+    ?? (() => {
+      const home = resolveHomeDirFromEnv(env);
+      return home ? path.join(home, ".codex") : null;
+    })();
+  if (!codexHome) return null;
+
+  const configJsonPath = path.join(codexHome, "config.json");
+  if (existsSync(configJsonPath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(configJsonPath, "utf8")) as unknown;
+      const found = findOpenAiBaseUrlInObject(parsed);
+      if (found) return found;
+    } catch {
+      // Ignore malformed local config and continue fallback parsing.
+    }
+  }
+
+  const configTomlPath = path.join(codexHome, "config.toml");
+  if (existsSync(configTomlPath)) {
+    try {
+      const found = parseOpenAiBaseUrlFromCodexToml(readFileSync(configTomlPath, "utf8"));
+      if (found) return found;
+    } catch {
+      // Ignore malformed local config and leave env unchanged.
+    }
+  }
+
+  return null;
 }
 
 function signalRunningProcess(
@@ -1478,6 +1596,11 @@ export async function runChildProcess(
       ...sanitizeInheritedPaperclipEnv(process.env),
       ...opts.env,
     };
+
+    const inferredOpenAiBaseUrl = inferOpenAiBaseUrlFromLocalCliConfig(rawMerged);
+    if (inferredOpenAiBaseUrl) {
+      rawMerged.OPENAI_BASE_URL = inferredOpenAiBaseUrl;
+    }
 
     // Strip Claude Code nesting-guard env vars so spawned `claude` processes
     // don't refuse to start with "cannot be launched inside another session".

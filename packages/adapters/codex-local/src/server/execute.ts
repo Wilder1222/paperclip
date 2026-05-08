@@ -39,7 +39,13 @@ import {
   isCodexTransientUpstreamError,
   isCodexUnknownSessionError,
 } from "./parse.js";
-import { pathExists, prepareManagedCodexHome, resolveManagedCodexHomeDir, resolveSharedCodexHomeDir } from "./codex-home.js";
+import {
+  pathExists,
+  prepareManagedCodexHome,
+  readCodexCliModelConfig,
+  resolveManagedCodexHomeDir,
+  resolveSharedCodexHomeDir,
+} from "./codex-home.js";
 import { resolveCodexDesiredSkillNames } from "./skills.js";
 import { buildCodexExecArgs } from "./codex-args.js";
 
@@ -74,6 +80,28 @@ function firstNonEmptyLine(text: string): string {
 function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean {
   const raw = env[key];
   return typeof raw === "string" && raw.trim().length > 0;
+}
+
+export type OpenaiKeySource = "adapter_config" | "server_env" | "missing";
+
+export function resolveOpenaiKeySource(
+  env: Record<string, string>,
+  hostEnv: NodeJS.ProcessEnv = process.env,
+): OpenaiKeySource {
+  const adapterValue = env.OPENAI_API_KEY;
+  if (typeof adapterValue === "string") {
+    if (adapterValue.trim().length > 0) return "adapter_config";
+    // Empty/whitespace adapter values must not override valid host keys.
+    delete env.OPENAI_API_KEY;
+  }
+
+  const hostValue = hostEnv.OPENAI_API_KEY;
+  if (typeof hostValue === "string" && hostValue.trim().length > 0) {
+    env.OPENAI_API_KEY = hostValue.trim();
+    return "server_env";
+  }
+
+  return "missing";
 }
 
 function resolveCodexBillingType(env: Record<string, string>): "api" | "subscription" {
@@ -284,7 +312,6 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
   );
   const command = asString(config.command, "codex");
-  const model = asString(config.model, "");
 
   const workspaceContext = parseObject(context.paperclipWorkspace);
   const workspaceCwd = asString(workspaceContext.cwd, "");
@@ -456,6 +483,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   if (!hasExplicitApiKey && authToken) {
     env.PAPERCLIP_API_KEY = authToken;
   }
+  const openaiKeySource = resolveOpenaiKeySource(env, process.env);
+  const cliModelConfig = await readCodexCliModelConfig(env.CODEX_HOME);
+  const cliModel = cliModelConfig.model?.trim() ?? "";
+  await onLog(
+    "stdout",
+    `[paperclip] Codex CLI model config read: source=${cliModelConfig.source ?? "(none)"}; model=${cliModel || "(none)"}; content=${cliModelConfig.content ?? "(none)"}\n`,
+  );
+
   const effectiveEnv = Object.fromEntries(
     Object.entries({ ...process.env, ...env }).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
@@ -470,6 +505,17 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     includeRuntimeKeys: ["HOME"],
     resolvedCommand,
   });
+  if (openaiKeySource === "missing") {
+    await onLog(
+      "stdout",
+      "[paperclip] Warning: OPENAI_API_KEY is missing from both adapter config and server environment; Codex may fall back to non-API auth or fail depending on local setup.\n",
+    );
+  } else {
+    await onLog(
+      "stdout",
+      `[paperclip] OPENAI_API_KEY source: ${openaiKeySource}; billing type: ${billingType}.\n`,
+    );
+  }
 
   const timeoutSec = asNumber(config.timeoutSec, 0);
   const graceSec = asNumber(config.graceSec, 20);
@@ -618,8 +664,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   };
 
   const runAttempt = async (resumeSessionId: string | null) => {
+    const baseExecConfig = forceSaferInvocation ? { ...config, fastMode: false } : config;
+    const execConfig = { ...baseExecConfig, model: cliModel };
     const execArgs = buildCodexExecArgs(
-      forceSaferInvocation ? { ...config, fastMode: false } : config,
+      execConfig,
       { resumeSessionId },
     );
     const args = execArgs.args;
@@ -747,7 +795,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       sessionDisplayId: resolvedSessionId,
       provider: "openai",
       biller: resolveCodexBiller(effectiveEnv, billingType),
-      model,
+      model: cliModel,
       billingType,
       costUsd: null,
       resultJson: {

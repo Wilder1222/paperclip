@@ -1,4 +1,10 @@
-export { execute, ensureCodexSkillsInjected } from "./execute.js";
+export {
+  execute,
+  ensureCodexSkillsInjected,
+  resolveOpenaiKeySource,
+  type OpenaiKeySource,
+} from "./execute.js";
+export { readCodexCliModelConfig } from "./codex-home.js";
 export { listCodexSkills, syncCodexSkills } from "./skills.js";
 export { testEnvironment } from "./test.js";
 export { parseCodexJsonl, isCodexTransientUpstreamError, isCodexUnknownSessionError } from "./parse.js";
