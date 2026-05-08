@@ -33,7 +33,7 @@ import { formatDate, cn, projectUrl } from "../lib/utils";
 import { timeAgo } from "../lib/timeAgo";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { User, Hexagon, ArrowUpRight, Tag, Plus, GitBranch, FolderOpen, Check, ExternalLink, GitPullRequest, Globe, FileText, Package } from "lucide-react";
+import { User, Hexagon, ArrowUpRight, Tag, Plus, GitBranch, FolderOpen, Check, ExternalLink, GitPullRequest, Globe, FileText, Package, X } from "lucide-react";
 import { AgentIcon } from "./AgentIconPicker";
 
 function TruncatedCopyable({ value, icon: Icon }: { value: string; icon: React.ComponentType<{ className?: string }> }) {
@@ -245,6 +245,10 @@ export function IssueProperties({
     const [labelSearch, setLabelSearch] = useState("");
     const [newLabelName, setNewLabelName] = useState("");
     const [newLabelColor, setNewLabelColor] = useState("#6366f1");
+    const [wpFormOpen, setWpFormOpen] = useState(false);
+    const [wpFormType, setWpFormType] = useState("pull_request");
+    const [wpFormTitle, setWpFormTitle] = useState("");
+    const [wpFormUrl, setWpFormUrl] = useState("");
 
     const { data: session } = useQuery({
         queryKey: queryKeys.auth.session,
@@ -293,6 +297,31 @@ export function IssueProperties({
         queryKey: queryKeys.issues.list(companyId!),
         queryFn: () => issuesApi.list(companyId!),
         enabled: !!companyId && (blockedByOpen || parentOpen),
+    });
+
+    const { data: workProducts } = useQuery({
+        queryKey: queryKeys.issues.workProducts(issue.id),
+        queryFn: () => issuesApi.listWorkProducts(issue.id),
+        initialData: issue.workProducts,
+    });
+
+    const addWorkProduct = useMutation({
+        mutationFn: (data: { type: string; title: string; url?: string }) =>
+            issuesApi.createWorkProduct(issue.id, { ...data, provider: "custom", status: "active" }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.issues.workProducts(issue.id) });
+            setWpFormOpen(false);
+            setWpFormTitle("");
+            setWpFormUrl("");
+            setWpFormType("pull_request");
+        },
+    });
+
+    const deleteWorkProduct = useMutation({
+        mutationFn: (wpId: string) => issuesApi.deleteWorkProduct(wpId),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.issues.workProducts(issue.id) });
+        },
     });
 
     const createLabel = useMutation({
@@ -1336,39 +1365,104 @@ export function IssueProperties({
                 </>
             ) : null}
 
-            {(issue.workProducts ?? []).length > 0 ? (
-                <>
-                    <Separator />
-                    <div className="space-y-1">
+            <>
+                <Separator />
+                <div className="space-y-1">
+                    <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">Work Products</span>
-                        {(issue.workProducts ?? []).map((wp) => {
-                            const statusLabel = WORK_PRODUCT_STATUS_LABELS[wp.status];
-                            return (
-                                <div key={wp.id} className="flex items-start gap-1.5 py-0.5 min-w-0">
-                                    <WorkProductTypeIcon type={wp.type} className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                                    <div className="min-w-0 flex-1">
-                                        {wp.url ? (
-                                            <a
-                                                href={wp.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-sm text-primary hover:underline break-all leading-tight"
-                                            >
-                                                {wp.title}
-                                            </a>
-                                        ) : (
-                                            <span className="text-sm break-all leading-tight">{wp.title}</span>
-                                        )}
-                                        {statusLabel && (
-                                            <span className="ml-1.5 text-xs text-muted-foreground">({statusLabel})</span>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        <button
+                            type="button"
+                            onClick={() => setWpFormOpen((v) => !v)}
+                            className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                            title="Add work product"
+                        >
+                            <Plus className="h-3 w-3" />
+                        </button>
                     </div>
-                </>
-            ) : null}
+                    {wpFormOpen && (
+                        <div className="space-y-1.5 rounded border p-2 bg-muted/30">
+                            <select
+                                value={wpFormType}
+                                onChange={(e) => setWpFormType(e.target.value)}
+                                className="w-full rounded border bg-background px-2 py-1 text-xs"
+                            >
+                                <option value="pull_request">Pull Request</option>
+                                <option value="preview_url">Preview URL</option>
+                                <option value="branch">Branch</option>
+                                <option value="document">Document</option>
+                                <option value="artifact">Artifact</option>
+                                <option value="commit">Commit</option>
+                            </select>
+                            <input
+                                value={wpFormTitle}
+                                onChange={(e) => setWpFormTitle(e.target.value)}
+                                placeholder="Title"
+                                className="w-full rounded border bg-background px-2 py-1 text-xs"
+                            />
+                            <input
+                                value={wpFormUrl}
+                                onChange={(e) => setWpFormUrl(e.target.value)}
+                                placeholder="URL (optional)"
+                                className="w-full rounded border bg-background px-2 py-1 text-xs"
+                            />
+                            <div className="flex gap-1.5 justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => { setWpFormOpen(false); setWpFormTitle(""); setWpFormUrl(""); }}
+                                    className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={!wpFormTitle.trim() || addWorkProduct.isPending}
+                                    onClick={() => addWorkProduct.mutate({ type: wpFormType, title: wpFormTitle.trim(), url: wpFormUrl.trim() || undefined })}
+                                    className="rounded bg-primary px-2 py-0.5 text-xs text-primary-foreground disabled:opacity-50"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {(workProducts ?? []).map((wp) => {
+                        const statusLabel = WORK_PRODUCT_STATUS_LABELS[wp.status];
+                        return (
+                            <div key={wp.id} className="group flex items-start gap-1.5 py-0.5 min-w-0">
+                                <WorkProductTypeIcon type={wp.type} className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                                <div className="min-w-0 flex-1">
+                                    {wp.url ? (
+                                        <a
+                                            href={wp.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-primary hover:underline break-all leading-tight"
+                                        >
+                                            {wp.title}
+                                        </a>
+                                    ) : (
+                                        <span className="text-sm break-all leading-tight">{wp.title}</span>
+                                    )}
+                                    {statusLabel && (
+                                        <span className="ml-1.5 text-xs text-muted-foreground">({statusLabel})</span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => deleteWorkProduct.mutate(wp.id)}
+                                    disabled={deleteWorkProduct.isPending}
+                                    className="ml-auto h-4 w-4 shrink-0 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-muted disabled:opacity-30"
+                                    title="Remove work product"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </div>
+                        );
+                    })}
+                    {(workProducts ?? []).length === 0 && !wpFormOpen && (
+                        <p className="text-xs text-muted-foreground/60 py-0.5">No work products yet</p>
+                    )}
+                </div>
+            </>
 
             <Separator />
 

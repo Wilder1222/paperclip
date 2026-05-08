@@ -69,6 +69,7 @@ import { IssuesList } from "../components/IssuesList";
 import { AgentIcon } from "../components/AgentIconPicker";
 import { IssueReferenceActivitySummary } from "../components/IssueReferenceActivitySummary";
 import { IssueRelatedWorkPanel } from "../components/IssueRelatedWorkPanel";
+import { IssueDocuments, useIssueDocumentCount } from "../components/IssueDocuments";
 import { IssueProperties } from "../components/IssueProperties";
 import { IssueRunLedger } from "../components/IssueRunLedger";
 import { IssueWorkspaceCard } from "../components/IssueWorkspaceCard";
@@ -112,6 +113,7 @@ import {
   Eye,
   EyeOff,
   Hexagon,
+  FileText,
   ListTree,
   MessageSquare,
   MoreHorizontal,
@@ -844,6 +846,21 @@ const IssueDetailChatTab = memo(function IssueDetailChatTab({
     </div>
   );
 });
+
+function DocumentsTabTrigger({ issueId }: { issueId: string }) {
+  const count = useIssueDocumentCount(issueId);
+  return (
+    <TabsTrigger value="documents" className="gap-1.5">
+      <FileText className="h-3.5 w-3.5" />
+      Documents
+      {count !== undefined && count > 0 && (
+        <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-xs leading-none">
+          {count}
+        </span>
+      )}
+    </TabsTrigger>
+  );
+}
 
 type IssueDetailActivityTabProps = {
   issueId: string;
@@ -3406,6 +3423,7 @@ export function IssueDetail() {
             <ListTree className="h-3.5 w-3.5" />
             Related work
           </TabsTrigger>
+          <DocumentsTabTrigger issueId={issue.id} />
           {issuePluginTabItems.map((item) => (
             <TabsTrigger key={item.value} value={item.value}>
               {item.label}
@@ -3483,6 +3501,10 @@ export function IssueDetail() {
 
         <TabsContent value="related-work">
           <IssueRelatedWorkPanel relatedWork={issue.relatedWork} />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <IssueDocuments issueId={issue.id} />
         </TabsContent>
 
         {activePluginTab && (
