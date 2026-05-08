@@ -611,6 +611,28 @@ export function issueThreadInteractionService(db: Db) {
       return rows.map((row) => hydrateInteraction(row));
     },
 
+    getPendingPlanApprovalInteraction: async (issueId: string) => {
+      const rows = await db
+        .select()
+        .from(issueThreadInteractions)
+        .where(and(
+          eq(issueThreadInteractions.issueId, issueId),
+          eq(issueThreadInteractions.kind, "request_confirmation"),
+          eq(issueThreadInteractions.status, "pending"),
+        ))
+        .orderBy(asc(issueThreadInteractions.createdAt));
+
+      for (const row of rows) {
+        const payload = row.payload as { target?: { type?: string; key?: string } | null } | null;
+        if (payload?.target?.type === "issue_document" && payload.target.key === "plan") {
+          return hydrateInteraction(row);
+        }
+      }
+      return null;
+    },
+
+
+
     getById: async (interactionId: string) => {
       const row = await db
         .select()

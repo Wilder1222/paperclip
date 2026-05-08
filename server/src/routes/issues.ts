@@ -2755,6 +2755,16 @@ export function issueRoutes(
       return;
     }
 
+    const pendingPlanApproval = await issueThreadInteractionService(db).getPendingPlanApprovalInteraction(issue.id);
+    if (pendingPlanApproval) {
+      res.status(409).json({
+        error: "PLAN_APPROVAL_REQUIRED",
+        message: "This issue has a plan document that requires board approval before execution can proceed.",
+        interactionId: pendingPlanApproval.id,
+      });
+      return;
+    }
+
     const closedExecutionWorkspace = await getClosedIssueExecutionWorkspace(issue);
     if (closedExecutionWorkspace) {
       respondClosedIssueExecutionWorkspace(res, closedExecutionWorkspace);

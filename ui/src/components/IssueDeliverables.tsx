@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { IssueWorkProduct } from "@paperclipai/shared";
 import { documentsApi } from "../api/documents";
 import { issuesApi } from "../api/issues";
@@ -14,7 +15,26 @@ import {
   BookOpen,
   ExternalLink,
   Package,
+  Plus,
+  Trash2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 // ─── Work-product icon helper ───────────────────────────────────────────────
 
@@ -28,6 +48,93 @@ function WorkProductIcon({ type, className }: { type: IssueWorkProduct["type"]; 
     case "document": return <FileText className={cls} />;
     default: return <Box className={cls} />;
   }
+}
+
+// ─── AddWorkProductDialog ────────────────────────────────────────────────────
+
+const WORK_PRODUCT_TYPES = [
+  { value: "pull_request", label: "Pull Request" },
+  { value: "preview_url", label: "Preview URL" },
+  { value: "artifact", label: "Artifact" },
+  { value: "branch", label: "Branch" },
+  { value: "document", label: "Document" },
+] as const;
+
+function AddWorkProductDialog({
+  issueId,
+  open,
+  onOpenChange,
+}: {
+  issueId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [type, setType] = useState<string>("pull_request");
+  const [title, setTitle] = useState("");
+  const [url, setUrl] = useState("");
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: () =>
+      issuesApi.createWorkProduct(issueId, { type, title, url: url || undefined, provider: "manual" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.issues.workProducts(issueId) });
+      setTitle("");
+      setUrl("");
+      setType("pull_request");
+      onOpenChange(false);
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add Work Product</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="wp-type">Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger id="wp-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WORK_PRODUCT_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="wp-title">Title</Label>
+            <Input
+              id="wp-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Add login page PR"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="wp-url">URL (optional)</Label>
+            <Input
+              id="wp-url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://github.com/…"
+              type="url"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => mutate()} disabled={!title.trim() || isPending}>
+            {isPending ? "Adding…" : "Add"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ─── useIssueDeliverableCount hook (exported for badge) ─────────────────────
@@ -48,6 +155,9 @@ export function useIssueDeliverableCount(issueId: string): number | undefined {
 // ─── IssueDeliverables main component ───────────────────────────────────────
 
 export function IssueDeliverables({ issueId }: { issueId: string }) {
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
   const { data: docs, isLoading: docsLoading } = useQuery({
     queryKey: queryKeys.issues.documents(issueId),
     queryFn: () => documentsApi.list(issueId),
@@ -56,6 +166,13 @@ export function IssueDeliverables({ issueId }: { issueId: string }) {
   const { data: workProducts, isLoading: wpsLoading } = useQuery({
     queryKey: queryKeys.issues.workProducts(issueId),
     queryFn: () => issuesApi.listWorkProducts(issueId),
+  });
+
+  const { mutate: deleteWp } = useMutation({
+    mutationFn: (id: string) => issuesApi.deleteWorkProduct(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.issues.workProducts(issueId) });
+    },
   });
 
   const isEmpty = (docs?.length ?? 0) === 0 && (workProducts?.length ?? 0) === 0;
@@ -70,50 +187,68 @@ export function IssueDeliverables({ issueId }: { issueId: string }) {
 
   if (isEmpty) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-        <div className="rounded-full bg-muted p-4">
-          <Package className="h-8 w-8 text-muted-foreground" />
+      <>
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="rounded-full bg-muted p-4">
+            <Package className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium">No deliverables yet</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Documents and work products created during this issue will appear here.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Add Work Product
+          </Button>
         </div>
-        <p className="text-sm font-medium">No deliverables yet</p>
-        <p className="text-xs text-muted-foreground max-w-xs">
-          Documents and work products created during this issue will appear here.
-        </p>
-      </div>
+        <AddWorkProductDialog issueId={issueId} open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+      </>
     );
   }
 
   return (
-    <div className="space-y-6 py-2">
-      {/* Work Products */}
-      {(workProducts?.length ?? 0) > 0 && (
+    <>
+      <div className="space-y-6 py-2">
+        {/* Work Products */}
         <section>
-          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Link2 className="h-3.5 w-3.5" />
-            Work Products
-          </h3>
-          <div className="space-y-1.5">
-            {workProducts!.map((wp) => (
-              <WorkProductRow key={wp.id} wp={wp} />
-            ))}
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Link2 className="h-3.5 w-3.5" />
+              Work Products
+            </h3>
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add
+            </Button>
           </div>
+          {(workProducts?.length ?? 0) > 0 ? (
+            <div className="space-y-1.5">
+              {workProducts!.map((wp) => (
+                <WorkProductRow key={wp.id} wp={wp} onDelete={() => deleteWp(wp.id)} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground py-2">No work products yet.</p>
+          )}
         </section>
-      )}
 
-      {/* Documents */}
-      {(docs?.length ?? 0) > 0 && (
-        <section>
-          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <FileText className="h-3.5 w-3.5" />
-            Documents
-          </h3>
-          <div className="space-y-1.5">
-            {docs!.map((doc) => (
-              <DocumentRow key={doc.key} doc={doc} />
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+        {/* Documents */}
+        {(docs?.length ?? 0) > 0 && (
+          <section>
+            <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <FileText className="h-3.5 w-3.5" />
+              Documents
+            </h3>
+            <div className="space-y-1.5">
+              {docs!.map((doc) => (
+                <DocumentRow key={doc.key} doc={doc} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+      <AddWorkProductDialog issueId={issueId} open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+    </>
   );
 }
 
@@ -127,10 +262,10 @@ function statusColor(status: string): string {
   return "text-muted-foreground";
 }
 
-function WorkProductRow({ wp }: { wp: IssueWorkProduct }) {
+function WorkProductRow({ wp, onDelete }: { wp: IssueWorkProduct; onDelete: () => void }) {
   const inner = (
     <div className={cn(
-      "flex items-center gap-3 rounded-md border bg-card px-3 py-2.5 text-sm",
+      "group flex items-center gap-3 rounded-md border bg-card px-3 py-2.5 text-sm",
       wp.url && "cursor-pointer hover:bg-accent/40 transition-colors",
     )}>
       <WorkProductIcon type={wp.type} className="h-4 w-4 text-muted-foreground" />
@@ -145,6 +280,14 @@ function WorkProductRow({ wp }: { wp: IssueWorkProduct }) {
           {(wp.status as string).replace(/_/g, " ")}
         </span>
         {wp.url && <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />}
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+          className="ml-1 rounded p-0.5 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+          title="Remove work product"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   );
