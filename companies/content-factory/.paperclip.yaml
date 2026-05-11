@@ -1,0 +1,19 @@
+schema: paperclip/v1
+agents:
+  publisher-operator:
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: optional
+routines:
+  weekly-content-planning:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 9 * * 1"
+        timezone: Asia/Shanghai
+  weekly-analytics-review:
+    triggers:
+      - kind: schedule
+        cronExpression: "0 14 * * 5"
+        timezone: Asia/Shanghai
