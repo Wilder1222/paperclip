@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { spawn as spawnChild } from "node:child_process";
+import { createServer } from "node:net";
 import path from "node:path";
 import { ensurePostgresDatabase, getPostgresDataDirectory } from "./client.js";
 import { createEmbeddedPostgresLogBuffer, formatEmbeddedPostgresError } from "./embedded-postgres-error.js";
@@ -62,12 +63,43 @@ async function loadEmbeddedPostgresCtor(): Promise<EmbeddedPostgresCtor> {
     }
 }
 
+async function isPortFree(port: number): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+        const server = createServer();
+        server.once("error", () => resolve(false));
+        server.once("listening", () => {
+            server.close(() => resolve(true));
+        });
+        server.listen({ host: "127.0.0.1", port, exclusive: true });
+    });
+}
+
+async function selectEmbeddedPostgresPort(preferredPort: number, maxAttempts = 20): Promise<number> {
+    if (await isPortFree(preferredPort)) {
+        return preferredPort;
+    }
+
+    for (let offset = 1; offset <= maxAttempts; offset += 1) {
+        const candidate = preferredPort + offset;
+        if (await isPortFree(candidate)) {
+            process.emitWarning(
+                `Embedded PostgreSQL port is in use; using next free port (requestedPort=${preferredPort}, selectedPort=${candidate})`,
+            );
+            return candidate;
+        }
+    }
+
+    throw new Error(
+        `Unable to find a free embedded PostgreSQL port in range ${preferredPort}-${preferredPort + maxAttempts}.`,
+    );
+}
+
 async function ensureEmbeddedPostgresConnection(
     dataDir: string,
     preferredPort: number,
 ): Promise<MigrationConnection> {
     const EmbeddedPostgres = await loadEmbeddedPostgresCtor();
-    const selectedPort = preferredPort;
+    const selectedPort = await selectEmbeddedPostgresPort(preferredPort);
     const postmasterPidFile = path.resolve(dataDir, "postmaster.pid");
     const pgVersionFile = path.resolve(dataDir, "PG_VERSION");
     const runningPid = readRunningPostmasterPid(postmasterPidFile);

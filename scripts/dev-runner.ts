@@ -535,7 +535,12 @@ async function markChildAsCurrent() {
     dirtyPaths = new Set();
     lastChangedAt = null;
     lastRestartAt = new Date().toISOString();
-    await refreshPendingMigrations();
+    // Avoid racing the freshly spawned child process for embedded Postgres startup.
+    // A concurrent migration status probe can attempt a second embedded cluster start
+    // against the same data directory and fail with shared-memory contention.
+    if (mode !== "watch") {
+        await refreshPendingMigrations();
+    }
     await updateDevServiceRecord();
 }
 
@@ -723,7 +728,9 @@ process.on("SIGTERM", () => {
     void shutdown("SIGTERM");
 });
 
-await maybePreflightMigrations();
+if (mode !== "watch") {
+    await maybePreflightMigrations();
+}
 await startServerChild();
 installDevIntervals();
 
