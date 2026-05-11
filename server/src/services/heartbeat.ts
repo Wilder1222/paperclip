@@ -2,19 +2,27 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { and, asc, desc, eq, getTableColumns, gt, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   AGENT_DEFAULT_MAX_CONCURRENT_RUNS,
   ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY,
   isEnvironmentDriverSupportedForAdapter,
+  issueDocumentKeySchema,
   type BillingType,
   type EnvironmentLeaseStatus,
   type ExecutionWorkspace,
   type ExecutionWorkspaceConfig,
   type RunLivenessState,
 } from "@paperclipai/shared";
+import { parseClaudeStdoutLine } from "@paperclipai/adapter-claude-local/ui";
+import { parseCodexStdoutLine } from "@paperclipai/adapter-codex-local/ui";
+import { parseCursorStdoutLine } from "@paperclipai/adapter-cursor-local/ui";
+import { parseGeminiStdoutLine } from "@paperclipai/adapter-gemini-local/ui";
+import { parseOpenClawGatewayStdoutLine } from "@paperclipai/adapter-openclaw-gateway/ui";
+import { parseOpenCodeStdoutLine } from "@paperclipai/adapter-opencode-local/ui";
+import { parsePiStdoutLine } from "@paperclipai/adapter-pi-local/ui";
 import {
   agents,
   agentRuntimeState,
@@ -40,6 +48,7 @@ import { publishLiveEvent } from "./live-events.js";
 import { getRunLogStore, type RunLogHandle } from "./run-log-store.js";
 import { getServerAdapter, runningProcesses } from "../adapters/index.js";
 import type { AdapterExecutionResult, AdapterInvocationMeta, AdapterSessionCodec, UsageSummary } from "../adapters/index.js";
+import type { StdoutLineParser, TranscriptEntry } from "@paperclipai/adapter-utils";
 import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { parseObject, asBoolean, asNumber, appendWithByteCap, MAX_EXCERPT_BYTES } from "../adapters/utils.js";
 import { costService } from "./costs.js";
@@ -77,6 +86,8 @@ import {
   sanitizeRuntimeServiceBaseEnv,
 } from "./workspace-runtime.js";
 import { issueService } from "./issues.js";
+import { documentService } from "./documents.js";
+import { knowledgeService } from "./knowledge.js";
 import { parseIssueExecutionState } from "./issue-execution-policy.js";
 import {
   ISSUE_TREE_CONTROL_INTERACTION_WAKE_REASONS,
@@ -846,6 +857,141 @@ export function compactRunLogChunk(chunk: string, maxChars = MAX_PERSISTED_LOG_C
   const omittedChars = Math.max(0, normalized.length - headChars - tailChars);
   const marker = `\n[paperclip truncated run log chunk: omitted ${omittedChars} chars]\n`;
   return `${normalized.slice(0, headChars)}${marker}${normalized.slice(normalized.length - tailChars)}`;
+}
+
+const MAX_AUTO_SYNC_MARKDOWN_BODY_CHARS = 512 * 1024;
+
+type MarkdownToolCallDraft = {
+  filePath: string;
+  body: string;
+  toolName: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function asStringValue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function asMultilineString(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) {
+    return (value as string[]).join("\n");
+  }
+  return null;
+}
+
+function isMarkdownPath(filePath: string): boolean {
+  const normalized = filePath.toLowerCase();
+  return normalized.endsWith(".md") || normalized.endsWith(".markdown") || normalized.endsWith(".mdx");
+}
+
+export function buildIssueDocumentKeyFromFilePath(filePath: string, usedKeys?: Set<string>): string {
+  const normalizedPath = filePath
+    .replace(/\\/g, "/")
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+/, "");
+  const pathWithoutExt = normalizedPath.replace(/\.[^/.]+$/, "");
+  const basename = path.basename(filePath).replace(/\.[^.]+$/, "");
+  let candidate = (pathWithoutExt || basename)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!candidate) candidate = "document";
+
+  const maxKeyLength = 64;
+  if (candidate.length > maxKeyLength) {
+    const hash = createHash("sha1").update(normalizedPath || filePath).digest("hex").slice(0, 8);
+    const head = candidate.slice(0, Math.max(1, maxKeyLength - hash.length - 1));
+    candidate = `${head}-${hash}`;
+  }
+
+  const uniqueSet = usedKeys ?? new Set<string>();
+  let finalCandidate = candidate.slice(0, maxKeyLength);
+  let suffix = 2;
+
+  while (uniqueSet.has(finalCandidate) || !issueDocumentKeySchema.safeParse(finalCandidate).success) {
+    const suffixText = `-${suffix}`;
+    const base = candidate.slice(0, Math.max(1, maxKeyLength - suffixText.length));
+    finalCandidate = `${base}${suffixText}`;
+    suffix += 1;
+  }
+
+  uniqueSet.add(finalCandidate);
+  return finalCandidate;
+}
+
+export function extractMarkdownToolCallDraft(entry: TranscriptEntry): MarkdownToolCallDraft | null {
+  if (entry.kind !== "tool_call") return null;
+  const toolName = entry.name.trim().toLowerCase();
+  if (!["create_file", "write_file"].includes(toolName)) return null;
+
+  const input = asRecord(entry.input);
+  if (!input) return null;
+
+  const filePath =
+    asStringValue(input.filePath)
+    ?? asStringValue(input.path)
+    ?? asStringValue(input.file)
+    ?? asStringValue(input.filename)
+    ?? asStringValue(input.file_name);
+  if (!filePath || !isMarkdownPath(filePath)) return null;
+
+  const rawBody =
+    asMultilineString(input.content)
+    ?? asMultilineString(input.body)
+    ?? asMultilineString(input.text)
+    ?? asMultilineString(input.newCode)
+    ?? asMultilineString(input.newContent);
+  if (!rawBody) return null;
+
+  if (rawBody.length > MAX_AUTO_SYNC_MARKDOWN_BODY_CHARS) return null;
+
+  return {
+    filePath,
+    body: rawBody,
+    toolName,
+  };
+}
+
+function inferTitleFromMarkdown(filePath: string, markdown: string): string {
+  const heading = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => /^#{1,6}\s+\S+/.test(line));
+  if (heading) return heading.replace(/^#{1,6}\s+/, "").slice(0, 240);
+
+  const stem = path.basename(filePath).replace(/\.[^.]+$/, "");
+  return stem.slice(0, 240) || "Document";
+}
+
+function parserForAdapter(adapterType: string | null): StdoutLineParser | null {
+  switch (adapterType) {
+    case "claude_local":
+      return parseClaudeStdoutLine;
+    case "codex_local":
+      return parseCodexStdoutLine;
+    case "cursor_local":
+      return parseCursorStdoutLine;
+    case "gemini_local":
+      return parseGeminiStdoutLine;
+    case "openclaw_gateway":
+      return parseOpenClawGatewayStdoutLine;
+    case "opencode_local":
+      return parseOpenCodeStdoutLine;
+    case "pi_local":
+      return parsePiStdoutLine;
+    default:
+      return null;
+  }
 }
 
 function normalizeMaxConcurrentRuns(value: unknown) {
@@ -1999,6 +2145,8 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
   const secretsSvc = secretService(db);
   const companySkills = companySkillService(db);
   const issuesSvc = issueService(db);
+  const documentsSvc = documentService(db);
+  const knowledgeSvc = knowledgeService(db);
   const treeControlSvc = issueTreeControlService(db);
   const executionWorkspacesSvc = executionWorkspaceService(db);
   const environmentsSvc = environmentService(db);
@@ -2089,6 +2237,96 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
       .from(issues)
       .where(and(eq(issues.id, issueId), eq(issues.companyId, companyId)))
       .then((rows) => rows[0] ?? null);
+  }
+
+  async function syncRunMarkdownOutputsToDocumentsAndLibrary(input: {
+    companyId: string;
+    issueId: string;
+    issueIdentifier: string | null;
+    runId: string;
+    agentId: string;
+    drafts: MarkdownToolCallDraft[];
+    onLog: (stream: "stdout" | "stderr", chunk: string) => Promise<void>;
+  }) {
+    if (input.drafts.length === 0) return;
+
+    const actor = {
+      actorType: "agent" as const,
+      agentId: input.agentId,
+      userId: null,
+    };
+
+    const usedKeys = new Set<string>();
+    const syncedDocumentKeys: string[] = [];
+
+    for (const draft of input.drafts) {
+      try {
+        const key = buildIssueDocumentKeyFromFilePath(draft.filePath, usedKeys);
+        const existing = await documentsSvc.getIssueDocumentByKey(input.issueId, key);
+        const title = inferTitleFromMarkdown(draft.filePath, draft.body);
+
+        const upserted = await documentsSvc.upsertIssueDocument({
+          issueId: input.issueId,
+          key,
+          title: key === "plan" ? null : title,
+          format: "markdown",
+          body: draft.body,
+          changeSummary: `Auto-synced from agent markdown output: ${draft.filePath}`,
+          baseRevisionId: existing?.latestRevisionId ?? undefined,
+          createdByAgentId: input.agentId,
+          createdByRunId: input.runId,
+        });
+        syncedDocumentKeys.push(key);
+
+        const entrySlug = `${input.issueIdentifier ?? input.issueId}-${key}`
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 120) || key;
+        const entryTitle = `${input.issueIdentifier ?? input.issueId} / ${title}`.slice(0, 240);
+        const summaryLine = draft.body
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .find((line) => line.length > 0) ?? "";
+        const summary = summaryLine.length > 0 ? summaryLine.slice(0, 1000) : null;
+
+        const existingEntry = await knowledgeSvc.getEntryBySlug(input.companyId, entrySlug);
+        if (existingEntry) {
+          // Document body was already updated by upsertIssueDocument above.
+          // Only update the kb entry metadata to avoid creating a redundant revision.
+          await knowledgeSvc.updateEntry(existingEntry.id, {
+            title: entryTitle,
+            summary,
+            changeSummary: `Auto-sync from run ${input.runId}`,
+          }, actor);
+        } else {
+          await knowledgeSvc.createEntry(input.companyId, {
+            slug: entrySlug,
+            title: entryTitle,
+            summary,
+            docType: "general",
+            tags: ["agent-output", "auto-synced"],
+            sourceIssueId: input.issueId,
+            sourceRunId: input.runId,
+            documentId: upserted.document.id,
+            format: "markdown",
+          }, actor);
+        }
+      } catch (error) {
+        await input.onLog(
+          "stderr",
+          `[paperclip] Failed to auto-sync markdown output ${draft.filePath}: ${error instanceof Error ? error.message : String(error)}\n`,
+        );
+      }
+    }
+
+    if (syncedDocumentKeys.length > 0) {
+      await input.onLog(
+        "stdout",
+        `[paperclip] Auto-synced markdown outputs to issue documents and company library: ${syncedDocumentKeys.join(", ")}\n`,
+      );
+    }
   }
 
   async function getRuntimeState(agentId: string) {
@@ -5299,6 +5537,9 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
     let handle: RunLogHandle | null = null;
     let stdoutExcerpt = "";
     let stderrExcerpt = "";
+    const stdoutLineParser = parserForAdapter(agent.adapterType);
+    let stdoutLineBuffer = "";
+    const markdownDraftsByPath = new Map<string, MarkdownToolCallDraft>();
     let outputSeq = Number(run.lastOutputSeq ?? 0);
     let lastOutputFlushAt: Date | null = run.lastOutputAt ?? null;
     const outputProgressState: {
@@ -5331,6 +5572,36 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
       lastOutputFlushAt = pendingOutputProgress.at;
       outputProgressState.pending = null;
     };
+
+    const collectMarkdownDraftsFromStdout = (chunk: string, ts: string, flush = false) => {
+      if (!stdoutLineParser || !issueId) return;
+      stdoutLineBuffer += chunk;
+
+      while (true) {
+        const newlineIndex = stdoutLineBuffer.indexOf("\n");
+        if (newlineIndex < 0) break;
+        const rawLine = stdoutLineBuffer.slice(0, newlineIndex);
+        stdoutLineBuffer = stdoutLineBuffer.slice(newlineIndex + 1);
+        const line = rawLine.replace(/\r$/, "");
+        const entries = stdoutLineParser(line, ts);
+        for (const entry of entries) {
+          const draft = extractMarkdownToolCallDraft(entry);
+          if (!draft) continue;
+          markdownDraftsByPath.set(draft.filePath, draft);
+        }
+      }
+
+      if (flush && stdoutLineBuffer.trim().length > 0) {
+        const entries = stdoutLineParser(stdoutLineBuffer.replace(/\r$/, ""), ts);
+        stdoutLineBuffer = "";
+        for (const entry of entries) {
+          const draft = extractMarkdownToolCallDraft(entry);
+          if (!draft) continue;
+          markdownDraftsByPath.set(draft.filePath, draft);
+        }
+      }
+    };
+
     try {
       const startedAt = run.startedAt ?? new Date();
       const runningWithSession = await db
@@ -5406,6 +5677,11 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
           });
           persistedLogBytes += appendedBytes;
         }
+
+        if (stream === "stdout") {
+          collectMarkdownDraftsFromStdout(sanitizedChunk, ts);
+        }
+
         outputSeq += 1;
         outputProgressState.pending = {
           at: new Date(ts),
@@ -5609,6 +5885,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
         rawUsage,
       });
       const normalizedUsage = sessionUsageResolution.normalizedUsage;
+      collectMarkdownDraftsFromStdout("", new Date().toISOString(), true);
 
       let outcome: "succeeded" | "failed" | "cancelled" | "timed_out";
       const latestRun = await getRun(run.id);
@@ -5736,6 +6013,17 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
         });
         const livenessRun = finalizedRun;
         await refreshContinuationSummaryForRun(livenessRun, agent);
+        if (issueId && outcome === "succeeded" && markdownDraftsByPath.size > 0) {
+          await syncRunMarkdownOutputsToDocumentsAndLibrary({
+            companyId: agent.companyId,
+            issueId,
+            issueIdentifier: issueRef?.identifier ?? null,
+            runId: livenessRun.id,
+            agentId: agent.id,
+            drafts: [...markdownDraftsByPath.values()],
+            onLog,
+          });
+        }
         if (issueId && outcome === "succeeded") {
           try {
             const existingRunComment = await findRunIssueComment(livenessRun.id, livenessRun.companyId, issueId);

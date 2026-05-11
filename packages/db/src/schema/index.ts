@@ -73,3 +73,5 @@ export { pluginWebhookDeliveries } from "./plugin_webhooks.js";
 export { pluginLogs } from "./plugin_logs.js";
 export { memoryBindings } from "./memory_bindings.js";
 export { memoryOperations } from "./memory_operations.js";
+export { kbCollections } from "./kb_collections.js";
+export { kbEntries, KB_ENTRY_STATUSES, KB_ENTRY_DOC_TYPES } from "./kb_entries.js";

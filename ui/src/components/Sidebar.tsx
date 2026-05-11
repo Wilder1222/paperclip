@@ -12,6 +12,8 @@ import {
   Repeat,
   GitBranch,
   Settings,
+  BookOpen,
+  InboxIcon,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -22,6 +24,7 @@ import { useDialogActions } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
 import { heartbeatsApi } from "../api/heartbeats";
 import { instanceSettingsApi } from "../api/instanceSettings";
+import { knowledgeApi } from "../api/knowledge";
 import { queryKeys } from "../lib/queryKeys";
 import { useInboxBadge } from "../hooks/useInboxBadge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +46,13 @@ export function Sidebar() {
     refetchInterval: 10_000,
   });
   const liveRunCount = liveRuns?.length ?? 0;
+  const { data: kbReviewQueue } = useQuery({
+    queryKey: [...queryKeys.knowledge.entries(selectedCompanyId!), "sidebar-in-review-count"],
+    queryFn: () => knowledgeApi.listEntries(selectedCompanyId!, { status: "in_review", limit: "1", offset: "0" }),
+    enabled: !!selectedCompanyId,
+    refetchInterval: 60_000,
+  });
+  const kbInboxCount = kbReviewQueue?.total ?? 0;
   const showWorkspacesLink = experimentalSettings?.enableIsolatedWorkspaces === true;
 
   function openSearch() {
@@ -109,6 +119,16 @@ export function Sidebar() {
         <SidebarProjects />
 
         <SidebarAgents />
+
+        <SidebarSection label="Knowledge">
+          <SidebarNavItem to="/knowledge/library" label="Library" icon={BookOpen} />
+          <SidebarNavItem
+            to="/knowledge/inbox"
+            label="Inbox"
+            icon={InboxIcon}
+            badge={kbInboxCount > 0 ? kbInboxCount : undefined}
+          />
+        </SidebarSection>
 
         <SidebarSection label="Company">
           <SidebarNavItem to="/org" label="Org" icon={Network} />

@@ -77,6 +77,14 @@ describe("issue validators", () => {
     expect(document.body).toBe("# Plan\n\nShip it");
   });
 
+  it("defaults issue document format to markdown when omitted", () => {
+    const document = upsertIssueDocumentSchema.parse({
+      body: "# Plan\n\nShip it",
+    });
+
+    expect(document.format).toBe("markdown");
+  });
+
   it("clamps oversized requestDepth values on create", () => {
     const parsed = createIssueSchema.parse({
       title: "Clamp request depth",

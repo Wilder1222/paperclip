@@ -470,7 +470,7 @@ export const issueDocumentFormatSchema = z.enum(ISSUE_DOCUMENT_FORMATS);
 
 export const upsertIssueDocumentSchema = z.object({
   title: z.string().trim().max(200).nullable().optional(),
-  format: issueDocumentFormatSchema,
+  format: issueDocumentFormatSchema.optional().default("markdown"),
   body: multilineTextSchema.pipe(z.string().max(524288)),
   changeSummary: z.string().trim().max(500).nullable().optional(),
   baseRevisionId: z.string().uuid().nullable().optional(),

@@ -347,3 +347,4 @@ export type {
     CreateMemoryBindingInput,
     UpdateMemoryBindingInput,
 } from "./memory.js";
+export type { KbCollection, KbEntrySummary, KbEntry } from "./knowledge.js";

@@ -174,4 +174,10 @@ export const queryKeys = {
     adapters: {
         all: ["adapters"] as const,
     },
+    knowledge: {
+        entries: (companyId: string) => ["knowledge", "entries", companyId] as const,
+        entry: (id: string) => ["knowledge", "entry", id] as const,
+        inbox: (companyId: string) => ["knowledge", "inbox", companyId] as const,
+        collections: (companyId: string) => ["knowledge", "collections", companyId] as const,
+    },
 };

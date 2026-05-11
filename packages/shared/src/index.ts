@@ -962,3 +962,27 @@ export type {
     EnvironmentProviderCapability,
     EnvironmentSupportStatus,
 } from "./environment-support.js";
+
+export {
+    KB_ENTRY_STATUSES,
+    KB_ENTRY_DOC_TYPES,
+    kbEntryStatusSchema,
+    kbEntryDocTypeSchema,
+    createKbEntrySchema,
+    updateKbEntrySchema,
+    submitKbReviewSchema,
+    rejectKbEntrySchema,
+    createKbCollectionSchema,
+    updateKbCollectionSchema,
+} from "./validators/knowledge.js";
+export type {
+    KbEntryStatus,
+    KbEntryDocType,
+    CreateKbEntry,
+    UpdateKbEntry,
+    SubmitKbReview,
+    RejectKbEntry,
+    CreateKbCollection,
+    UpdateKbCollection,
+} from "./validators/knowledge.js";
+export type { KbCollection, KbEntrySummary, KbEntry } from "./types/knowledge.js";

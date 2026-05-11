@@ -21,6 +21,9 @@ import { UserProfile } from "./pages/UserProfile";
 import { ExecutionWorkspaceDetail } from "./pages/ExecutionWorkspaceDetail";
 import { Goals } from "./pages/Goals";
 import { GoalDetail } from "./pages/GoalDetail";
+import { KnowledgeLibrary } from "./pages/KnowledgeLibrary";
+import { KnowledgeInbox } from "./pages/KnowledgeInbox";
+import { KnowledgeDetail } from "./pages/KnowledgeDetail";
 import { Approvals } from "./pages/Approvals";
 import { ApprovalDetail } from "./pages/ApprovalDetail";
 import { Costs } from "./pages/Costs";
@@ -110,6 +113,9 @@ function boardRoutes() {
       <Route path="execution-workspaces/:workspaceId/issues" element={<ExecutionWorkspaceDetail />} />
       <Route path="goals" element={<Goals />} />
       <Route path="goals/:goalId" element={<GoalDetail />} />
+      <Route path="knowledge/library" element={<KnowledgeLibrary />} />
+      <Route path="knowledge/inbox" element={<KnowledgeInbox />} />
+      <Route path="knowledge/:entryId" element={<KnowledgeDetail />} />
       <Route path="approvals" element={<Navigate to="/approvals/pending" replace />} />
       <Route path="approvals/pending" element={<Approvals />} />
       <Route path="approvals/all" element={<Approvals />} />

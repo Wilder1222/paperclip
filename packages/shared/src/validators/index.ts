@@ -392,3 +392,24 @@ export {
   type SetPluginState,
   type ListPluginState,
 } from "./plugin.js";
+
+export {
+  KB_ENTRY_STATUSES,
+  KB_ENTRY_DOC_TYPES,
+  kbEntryStatusSchema,
+  kbEntryDocTypeSchema,
+  createKbEntrySchema,
+  updateKbEntrySchema,
+  submitKbReviewSchema,
+  rejectKbEntrySchema,
+  createKbCollectionSchema,
+  updateKbCollectionSchema,
+  type KbEntryStatus,
+  type KbEntryDocType,
+  type CreateKbEntry,
+  type UpdateKbEntry,
+  type SubmitKbReview,
+  type RejectKbEntry,
+  type CreateKbCollection,
+  type UpdateKbCollection,
+} from "./knowledge.js";
