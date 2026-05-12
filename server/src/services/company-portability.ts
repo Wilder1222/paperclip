@@ -2756,6 +2756,55 @@ export function parseGitHubSourceUrl(rawUrl: string) {
   return { hostname, owner, repo, ref, basePath, companyPath };
 }
 
+type ParsedGitHubSource = ReturnType<typeof parseGitHubSourceUrl>;
+
+export async function resolveGitHubSourceUrlRefWithSlashes(
+  rawUrl: string,
+  parsed: ParsedGitHubSource,
+  probeExists: (ref: string, repoPath: string) => Promise<boolean>,
+): Promise<ParsedGitHubSource> {
+  const url = new URL(rawUrl);
+  const queryRef = url.searchParams.get("ref")?.trim();
+  const queryPath = normalizeGitHubSourcePath(url.searchParams.get("path"));
+  const queryCompanyPath = normalizeGitHubSourcePath(url.searchParams.get("companyPath"));
+  if (queryRef || queryPath || queryCompanyPath) return parsed;
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts.length < 5) return parsed;
+  const kind = parts[2];
+  if (kind !== "tree" && kind !== "blob") return parsed;
+  const refAndPathSegments = parts.slice(3);
+  if (refAndPathSegments.length < 2) return parsed;
+
+  for (let split = refAndPathSegments.length - 1; split >= 1; split -= 1) {
+    const ref = refAndPathSegments.slice(0, split).join("/");
+    const repoPath = refAndPathSegments.slice(split).join("/");
+    if (!ref || !repoPath) continue;
+
+    const probePath = kind === "tree" ? `${repoPath}/COMPANY.md` : repoPath;
+    if (!await probeExists(ref, probePath)) continue;
+
+    if (kind === "tree") {
+      return {
+        ...parsed,
+        ref,
+        basePath: repoPath,
+        companyPath: "COMPANY.md",
+      };
+    }
+
+    const basePath = path.posix.dirname(repoPath);
+    return {
+      ...parsed,
+      ref,
+      basePath: basePath === "." ? "" : basePath,
+      companyPath: repoPath,
+    };
+  }
+
+  return parsed;
+}
+
 
 export function companyPortabilityService(db: Db, storage?: StorageService) {
   const companies = companyService(db);
@@ -2862,7 +2911,25 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       );
     }
 
-    const parsed = parseGitHubSourceUrl(source.url);
+    const parsedInitial = parseGitHubSourceUrl(source.url);
+    const parsed = await resolveGitHubSourceUrlRefWithSlashes(
+      source.url,
+      parsedInitial,
+      async (refCandidate, repoPath) => {
+        const rawUrl = resolveRawGitHubUrl(
+          parsedInitial.hostname,
+          parsedInitial.owner,
+          parsedInitial.repo,
+          refCandidate,
+          repoPath,
+        );
+        try {
+          return (await fetchOptionalText(rawUrl)) !== null;
+        } catch {
+          return false;
+        }
+      },
+    );
     let ref = parsed.ref;
     const warnings: string[] = [];
     const companyRelativePath = parsed.companyPath === "COMPANY.md"

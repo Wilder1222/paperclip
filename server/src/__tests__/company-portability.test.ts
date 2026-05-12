@@ -113,7 +113,11 @@ vi.mock("../routes/org-chart-svg.js", () => ({
   renderOrgChartPng: vi.fn(async () => Buffer.from("png")),
 }));
 
-const { companyPortabilityService, parseGitHubSourceUrl } = await import("../services/company-portability.js");
+const {
+  companyPortabilityService,
+  parseGitHubSourceUrl,
+  resolveGitHubSourceUrlRefWithSlashes,
+} = await import("../services/company-portability.js");
 
 function asTextFile(entry: CompanyPortabilityFileEntry | undefined) {
   expect(typeof entry).toBe("string");
@@ -435,6 +439,50 @@ describe("company portability", () => {
       ref: "abc123",
       basePath: "gstack",
       companyPath: "gstack/COMPANY.md",
+    });
+  });
+
+  it("resolves tree URLs that use branch names with slashes", async () => {
+    const rawUrl = "https://github.com/Wilder1222/paperclip/tree/copilot/design-organizational-structure/companies/content-factory";
+    const parsed = parseGitHubSourceUrl(rawUrl);
+
+    const resolved = await resolveGitHubSourceUrlRefWithSlashes(
+      rawUrl,
+      parsed,
+      async (ref, repoPath) =>
+        ref === "copilot/design-organizational-structure"
+        && repoPath === "companies/content-factory/COMPANY.md",
+    );
+
+    expect(resolved).toEqual({
+      hostname: "github.com",
+      owner: "Wilder1222",
+      repo: "paperclip",
+      ref: "copilot/design-organizational-structure",
+      basePath: "companies/content-factory",
+      companyPath: "COMPANY.md",
+    });
+  });
+
+  it("resolves blob URLs that use branch names with slashes", async () => {
+    const rawUrl = "https://github.com/Wilder1222/paperclip/blob/copilot/design-organizational-structure/companies/content-factory/COMPANY.md";
+    const parsed = parseGitHubSourceUrl(rawUrl);
+
+    const resolved = await resolveGitHubSourceUrlRefWithSlashes(
+      rawUrl,
+      parsed,
+      async (ref, repoPath) =>
+        ref === "copilot/design-organizational-structure"
+        && repoPath === "companies/content-factory/COMPANY.md",
+    );
+
+    expect(resolved).toEqual({
+      hostname: "github.com",
+      owner: "Wilder1222",
+      repo: "paperclip",
+      ref: "copilot/design-organizational-structure",
+      basePath: "companies/content-factory",
+      companyPath: "companies/content-factory/COMPANY.md",
     });
   });
 
