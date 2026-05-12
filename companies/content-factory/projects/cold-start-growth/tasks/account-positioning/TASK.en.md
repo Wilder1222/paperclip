@@ -28,10 +28,10 @@ Produce an "Account Positioning Document" that can guide the full pipeline; obta
    - Content no-go zones (topics / formats to never touch)
    - Differentiation positioning (main difference from competitors in the same vertical)
 
-4. **Monetisation Path (Knowledge-IP)**
-   - Near-term (3 months): follower accumulation + trust building
-   - Mid-term (6 months): paid consulting / knowledge community / private group
-   - Long-term (12 months): online course / 1-on-1 coaching / brand partnership
+4. **Near-Term Growth Goals**
+   - Within 90 days: follower accumulation + trust building
+   - Content strategy: build vertical expertise and professional influence through consistent output
+   - Engagement strategy: boost comment-section activity and build authentic connections with the audience
 
 5. **Dual-Platform Strategy**
    - Douyin account positioning (focus: rapid recognition)

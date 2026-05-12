@@ -1,6 +1,6 @@
 ---
 name: Content Factory
-description: An AI-indie-developer knowledge-IP company that runs a pipeline workflow on Douyin and Xiaohongshu, consistently sharing AI content, knowledge, and hands-on experience, and converting professional influence into sustainable paid-knowledge products
+description: An AI-indie-developer personal IP company that runs a pipeline workflow on Douyin and Xiaohongshu, consistently sharing AI content, knowledge, and hands-on experience to build dual-platform followers and professional influence
 slug: content-factory
 schema: agentcompanies/v1
 version: 2.0.0
@@ -23,12 +23,11 @@ references:
     url: https://github.com/Construct-AI-primary/agent-companies-core/tree/main/companies/loopy-ai
 mission: >
   Build a sustainably growing knowledge-based personal IP as an AI indie developer, sharing AI content,
-  knowledge, and hands-on experience through a dual-platform content matrix, and creating a complete
-  monetisation loop from content exposure → audience trust → paid knowledge products.
+  knowledge, and hands-on experience through a dual-platform content matrix, accumulating professional
+  influence, building audience trust, and achieving sustained follower growth across both platforms.
 goals:
   - Become a top AI-indie-developer knowledge IP on Douyin + Xiaohongshu in the chosen vertical (90-day foundation)
   - Publish 20 pieces of dual-platform AI content per week (tool reviews / practical experience / knowledge explainers) with a viral rate ≥ 15%
-  - Establish a paid-knowledge conversion path (community / consulting / course)
   - Net +20 k followers across both platforms within 90 days
 ---
 
@@ -36,9 +35,9 @@ goals:
 
 ## Strategic Mission
 
-> **Build a sustainably growing knowledge-based personal IP as an AI indie developer, sharing AI content, knowledge, and hands-on experience through a dual-platform content matrix, accumulating professional influence, and creating a complete monetisation loop from content exposure to paid knowledge products.**
+> **Build a sustainably growing knowledge-based personal IP as an AI indie developer, sharing AI content, knowledge, and hands-on experience through a dual-platform content matrix, accumulating professional influence, building audience trust, and achieving sustained follower growth across both platforms.**
 
-This company exists not merely to publish content but to **establish an authentic, trustworthy AI-indie-developer professional persona (IP)**. Content is the means; influence is the moat; paid knowledge products are the monetisation exit.
+This company exists not merely to publish content but to **establish an authentic, trustworthy AI-indie-developer professional persona (IP)**. Content is the means; influence is the moat; follower growth is the core goal.
 
 ### Mission Breakdown
 
@@ -47,7 +46,7 @@ This company exists not merely to publish content but to **establish an authenti
 | **Mission layer** | Knowledge-based personal IP | Become the trusted expert voice in a vertical |
 | **Brand layer** | Dual-platform professional image | Douyin for rapid recognition; Xiaohongshu for deep-rooted reputation |
 | **Content layer** | 20-piece-per-week pipeline | Consistent supply is the foundation of trust with both algorithm and audience |
-| **Monetisation layer** | Paid knowledge product loop | Content → DM → paid consulting / community / course |
+| **Growth layer** | Sustained follower growth | Content exposure → audience trust → follower accumulation |
 
 ---
 
@@ -60,7 +59,6 @@ This company exists not merely to publish content but to **establish an authenti
 | KR1 (Growth) | Net new followers across both platforms | 20 k (Douyin + Xiaohongshu combined) |
 | KR2 (Output) | Pieces published per week | 20 / week (short video + graphics mix) |
 | KR3 (Quality) | Viral rate | ≥ 15% (pieces that hit the account's viral threshold) |
-| KR4 (Monetisation) | Paid-knowledge conversion path | At least 1 live path (consulting / community / course) |
 
 ---
 
