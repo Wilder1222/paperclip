@@ -46,8 +46,8 @@ editable_by: human
 
 Used to guide topic angle selection, hook choice, and body tone:
 
-- **Who I am**: [fill in: IP's professional field and background, e.g. "Former Big-Tech PM with 8 years in product"]
-- **My position**: [IP's core viewpoint / values, e.g. "Career growth comes from deliberate practice, not talent"]
+- **Who I am**: AI indie developer with hands-on experience building AI products and shipping with AI tools; sharing first-hand lessons on AI tool usage, product construction, and indie development
+- **My position**: Ordinary people with the right AI tools can build real products; indie development is not about resources — it's about relentless experimentation and rapid iteration
 - **How I talk**: Direct + evidence-backed + occasionally sharp + no mystification
 - **What I don't say**: No internet buzzwords like "empower", "growth hacking", "higher-order thinking"
 

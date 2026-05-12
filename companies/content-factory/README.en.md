@@ -2,7 +2,7 @@
 
 > **Strategic Mission: Build a sustainably growing knowledge-based personal IP, accumulate professional influence through a dual-platform content matrix, and create a complete monetisation loop from content exposure to paid knowledge products.**
 
-An AI-agent-driven knowledge-IP content company covering Douyin + Xiaohongshu; it operates as a social-media operations company where platform operations and IP building are organised by projects, with content produced through a standardised pipeline and iterated through data.
+An AI-agent-driven knowledge-IP company for an AI indie developer covering Douyin + Xiaohongshu; it operates as a social-media operations company where platform operations and IP building are organised by projects, consistently sharing AI content, knowledge, and hands-on experience through a standardised pipeline and iterating through data.
 
 ## Strategic Mission
 

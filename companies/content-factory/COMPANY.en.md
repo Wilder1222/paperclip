@@ -1,6 +1,6 @@
 ---
 name: Content Factory
-description: A knowledge-IP-first AI agent company that runs a pipeline workflow on Douyin and Xiaohongshu, building sustainable professional influence and monetising it through paid knowledge products
+description: An AI-indie-developer knowledge-IP company that runs a pipeline workflow on Douyin and Xiaohongshu, consistently sharing AI content, knowledge, and hands-on experience, and converting professional influence into sustainable paid-knowledge products
 slug: content-factory
 schema: agentcompanies/v1
 version: 2.0.0
@@ -14,18 +14,20 @@ tags:
   - douyin
   - xiaohongshu
   - pipeline
+  - ai
+  - indie-developer
 references:
   - name: Shoshin (multi-niche short-form content engine)
     url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin
   - name: Loopy AI (creative content generation company)
     url: https://github.com/Construct-AI-primary/agent-companies-core/tree/main/companies/loopy-ai
 mission: >
-  Build a sustainably growing knowledge-based personal IP, accumulate professional
-  influence through a dual-platform content matrix, and create a complete monetisation
-  loop from content exposure → audience trust → paid knowledge products.
+  Build a sustainably growing knowledge-based personal IP as an AI indie developer, sharing AI content,
+  knowledge, and hands-on experience through a dual-platform content matrix, and creating a complete
+  monetisation loop from content exposure → audience trust → paid knowledge products.
 goals:
-  - Become a top knowledge IP on Douyin + Xiaohongshu in the chosen vertical (90-day foundation)
-  - Publish 20 pieces of dual-platform content per week with a viral rate ≥ 15%
+  - Become a top AI-indie-developer knowledge IP on Douyin + Xiaohongshu in the chosen vertical (90-day foundation)
+  - Publish 20 pieces of dual-platform AI content per week (tool reviews / practical experience / knowledge explainers) with a viral rate ≥ 15%
   - Establish a paid-knowledge conversion path (community / consulting / course)
   - Net +20 k followers across both platforms within 90 days
 ---
@@ -34,9 +36,9 @@ goals:
 
 ## Strategic Mission
 
-> **Build a sustainably growing knowledge-based personal IP, accumulate professional influence through a dual-platform content matrix, and create a complete monetisation loop from content exposure to paid knowledge products.**
+> **Build a sustainably growing knowledge-based personal IP as an AI indie developer, sharing AI content, knowledge, and hands-on experience through a dual-platform content matrix, accumulating professional influence, and creating a complete monetisation loop from content exposure to paid knowledge products.**
 
-This company exists not merely to publish content but to **establish an authentic, trustworthy professional persona (IP)**. Content is the means; influence is the moat; paid knowledge products are the monetisation exit.
+This company exists not merely to publish content but to **establish an authentic, trustworthy AI-indie-developer professional persona (IP)**. Content is the means; influence is the moat; paid knowledge products are the monetisation exit.
 
 ### Mission Breakdown
 
@@ -51,7 +53,7 @@ This company exists not merely to publish content but to **establish an authenti
 
 ## 90-Day OKRs
 
-### Objective: Become a top knowledge IP on Douyin + Xiaohongshu in the chosen vertical
+### Objective: Become a top AI-indie-developer knowledge IP on Douyin + Xiaohongshu in the AI vertical
 
 | KR | Metric | 90-Day Target |
 |----|--------|--------------|
