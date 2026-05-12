@@ -1,6 +1,7 @@
 ---
 name: 每周数据复盘报告
 assignee: growth-analyst
+project: content-factory-v1
 recurring: true
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: Weekly Content Topic Planning
 assignee: trend-researcher
+project: content-factory-v1
 recurring: true
 ---
 

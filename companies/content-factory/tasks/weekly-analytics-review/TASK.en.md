@@ -1,6 +1,7 @@
 ---
 name: Weekly Data Review Report
 assignee: growth-analyst
+project: content-factory-v1
 recurring: true
 ---
 

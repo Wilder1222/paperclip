@@ -1,6 +1,7 @@
 ---
 name: 每周内容选题计划
 assignee: trend-researcher
+project: content-factory-v1
 recurring: true
 ---
 
