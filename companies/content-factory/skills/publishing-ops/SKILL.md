@@ -5,6 +5,11 @@ tags:
   - publishing
   - operations
   - social-media
+source:
+  - name: Shoshin · content-calendar（内容日历管理：排期、优先级、发布节奏）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/content-calendar
+  - name: Shoshin · scheduler agent（发布排期 Agent 模式参考）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/scheduler
 ---
 
 # 发布运营技能

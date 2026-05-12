@@ -1,32 +1,50 @@
 # 自媒体内容工厂
 
-> 一家由 AI Agent 驱动的知识 IP 内容公司，以流水线方式生产双平台（抖音 + 小红书）内容，覆盖选题 → 脚本 → 制作 → 发布 → 复盘全链路。
+> **战略使命：建立可持续增长的知识型个人 IP，通过双平台内容矩阵积累专业影响力，构建从内容曝光到付费知识产品的变现闭环。**
 
-## 公司简介
+一家由 AI Agent 驱动的知识 IP 内容公司，覆盖抖音 + 小红书双平台，以流水线方式生产内容，以数据驱动迭代。
 
-自媒体内容工厂是一个完整的 AI 驱动内容团队，专为**知识 IP 账号**打造。7 个核心 Agent 协同运作，按流水线模式每周稳定产出 20 条内容，支撑 90 天内双平台粉丝净增 20k 的战略目标。
+## 战略使命
 
-**目标平台**：抖音 + 小红书（双平台同权）
+本公司的存在不是为了发内容，而是为了**建立一个真实的、可信任的专业人格（IP）**。
 
-**内容方向**：知识 IP（干货输出、专业人设建立、课程/付费社群转化）
+| 层次 | 目标 |
+|------|------|
+| 使命层 | 知识型个人 IP 建立，在垂直领域成为受众信任的专家声音 |
+| 品牌层 | 双平台专业形象（抖音快速认知 + 小红书深度口碑） |
+| 内容层 | 每周 20 条内容流水线，稳定供给算法和受众双重信任 |
+| 变现层 | 内容→私信→付费咨询/社群/课程 |
+
+## 90 天 OKR
+
+| KR | 指标 | 目标 |
+|----|------|------|
+| KR1（增长） | 双平台粉丝净增 | 20k |
+| KR2（产能） | 每周发布内容 | 20 条/周 |
+| KR3（质量） | 爆款率 | ≥ 15% |
+| KR4（变现） | 知识付费路径 | 至少 1 条上线 |
 
 ---
 
-## 工作流（流水线模式）
+## 公司架构
 
 ```
-业务目标 + 账号定位 + 素材库
-         ↓
-[阶段1 周一] 选题  ── trend-researcher 产出选题池(50条)
-         ↓
-[阶段2 周二] 审核  ── strategy-lead 圈定20条，下发选题决策表
-         ↓
-[阶段3 周二~四] 生产  ── script-writer(脚本) + video-producer(制作包) 并行
-         ↓
-[阶段4 周四~五] 发布  ── publisher-operator 按日历发布 + 首评运营
-         ↓
-[阶段5 周五] 复盘  ── growth-analyst 周报 → ceo + strategy-lead 策略迭代
+                    ┌─────────────────────┐
+                    │         CEO         │
+                    └──────────┬──────────┘
+              ┌────────────────┼────────────────┐
+              ▼                ▼                ▼
+   ┌──────────────────┐  ┌──────────────┐  ┌────────────────────┐
+   │  Strategy Lead   │  │  Publisher   │  │   Growth Analyst   │
+   └────────┬─────────┘  │  Operator    │  └────────────────────┘
+     ┌──────┼──────┐     └──────────────┘
+     ▼      ▼      ▼
+ ┌───────┐┌──────┐┌───────────┐
+ │Trend  ││Script││  Video    │
+ │Resear.││Writer││ Producer  │
+ └───────┘└──────┘└───────────┘
 ```
+
 
 ---
 
@@ -56,29 +74,34 @@ CEO
 
 ---
 
-## 战略目标（90 天）
+## 技能包（含 GitHub 来源）
 
-| 目标 | 描述 | 指标 |
-|------|------|------|
-| **增长** | 双平台粉丝净增 | 20k（抖音 + 小红书） |
-| **产能** | 每周内容产出 | 20 条/周（短视频+图文） |
-| **质量** | 内容爆款率 | ≥ 15%（达到账号爆款阈值） |
-| **商业化** | 知识 IP 变现闭环 | 建立付费咨询/课程/社群转化路径 |
+| 技能 | 说明 | GitHub 来源 |
+|------|------|------------|
+| `brand-voice-system` | IP 声音体系：语气轴、平台差异化、禁止表达 | [Shoshin · brand-voice-system](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/brand-voice-system) |
+| `audience-profiles` | 受众画像：痛点地图、欲望清单、双平台行为分布 | [Shoshin · audience-profiles](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/audience-profiles) |
+| `hook-writing` | 20+ 钩子模式，按心理触发类型分类 | [Shoshin · hooks-library](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/hooks-library) |
+| `content-research` | 热点抓取、竞品拆解、关键词聚类 | [Shoshin · intelligence-seed](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/intelligence-seed) |
+| `platform-playbook` | 抖音/小红书算法、规则、内容结构 | [Shoshin · tiktok-playbook](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/tiktok-playbook) + [instagram-playbook](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/instagram-playbook) |
+| `script-production` | 口播脚本、图文文案、分镜文档模板 | [Shoshin · content-types](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/content-types) + [repurpose-engine](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/repurpose-engine) |
+| `publishing-ops` | 最优时段、标签策略、A/B 测试、首评运营 | [Shoshin · content-calendar](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/content-calendar) |
+| `analytics-review` | 核心指标体系、三分法复盘、爆款拆解 | [Shoshin · analyst agent](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/analyst) |
+| `compliance-check` | 违禁词、广告法、知识 IP 特殊合规 | [Shoshin · compliance-rules](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/compliance-rules) |
+| `paperclip` | 任务编排、子任务拆解、状态推进 | [paperclipai/paperclip · skills/paperclip](https://github.com/paperclipai/paperclip/tree/main/skills/paperclip) |
 
----
+### Agent 参考来源
 
-## 技能包
+所有 Agent 设计均参考以下开源公司包：
 
-| 技能 | 说明 |
-|------|------|
-| `content-research` | 热点抓取、竞品拆解、关键词聚类 |
-| `platform-playbook` | 抖音/小红书算法、规则、内容结构 |
-| `hook-writing` | 6 种钩子类型、标题公式、质量检查 |
-| `script-production` | 口播脚本、图文文案、分镜文档模板 |
-| `publishing-ops` | 最优时段、标签策略、A/B 测试、首评运营 |
-| `analytics-review` | 核心指标体系、三分法复盘、爆款拆解 |
-| `compliance-check` | 违禁词、广告法、知识 IP 特殊合规 |
-| `paperclip` | 任务编排、子任务拆解、状态推进 |
+| Agent | GitHub 参考 |
+|-------|-----------|
+| ceo | [Loopy AI · vision-loopy-ceo](https://github.com/Construct-AI-primary/agent-companies-core/tree/main/companies/loopy-ai) · [Shoshin · chief-of-staff](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/chief-of-staff) |
+| strategy-lead | [Shoshin · strategist](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/strategist) · [Loopy AI · maya-loopy-content-strategist](https://github.com/Construct-AI-primary/agent-companies-core/tree/main/companies/loopy-ai) |
+| trend-researcher | [Shoshin · scout](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/scout) · [Shoshin · researcher](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/researcher) |
+| script-writer | [Shoshin · writer](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/writer) |
+| video-producer | [Shoshin · content-types](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/content-types) · [repurpose-engine](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/repurpose-engine) |
+| publisher-operator | [Shoshin · scheduler](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/scheduler) |
+| growth-analyst | [Shoshin · analyst](https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/analyst) |
 
 ---
 

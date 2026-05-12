@@ -5,6 +5,9 @@ tags:
   - copywriting
   - hooks
   - titles
+source:
+  - name: Shoshin · hooks-library（20+ 钩子模式库，按心理触发类型分类，含周迭代机制）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/hooks-library
 ---
 
 # 钩子写作技能

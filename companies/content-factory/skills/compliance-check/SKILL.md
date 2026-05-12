@@ -5,6 +5,9 @@ tags:
   - compliance
   - risk
   - content-moderation
+source:
+  - name: Shoshin · compliance-rules（平台合规规则库：FTC/FCA/MiCA 披露模板，10 项核查清单）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/compliance-rules
 ---
 
 # 合规检查技能

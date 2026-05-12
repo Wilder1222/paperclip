@@ -5,6 +5,9 @@ tags:
   - paperclip
   - task-management
   - coordination
+source:
+  - name: paperclipai/paperclip · skills/paperclip（官方 Paperclip 技能：API、Routines、Workflows 参考文档）
+    url: https://github.com/paperclipai/paperclip/tree/main/skills/paperclip
 ---
 
 # Paperclip 任务管理技能

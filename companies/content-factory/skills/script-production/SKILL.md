@@ -5,6 +5,11 @@ tags:
   - scriptwriting
   - content-production
   - copywriting
+source:
+  - name: Shoshin · content-types（平台原生内容类型规范：帖子 / 线程 / carousel / 视频）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/content-types
+  - name: Shoshin · repurpose-engine（一稿多发引擎：将核心内容适配多平台格式）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/repurpose-engine
 ---
 
 # 脚本生产技能

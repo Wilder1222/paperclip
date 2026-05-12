@@ -5,6 +5,11 @@ tags:
   - analytics
   - data
   - content-review
+source:
+  - name: Shoshin · analyst agent（数据分析 Agent 模式：绩效信号 → 钩子库迭代建议）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/agents/analyst
+  - name: Loopy AI · jordan-loopy-marketing-specialist（营销效果分析与迭代参考）
+    url: https://github.com/Construct-AI-primary/agent-companies-core/tree/main/companies/loopy-ai
 ---
 
 # 数据分析与复盘技能

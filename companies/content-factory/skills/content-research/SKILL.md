@@ -5,6 +5,13 @@ tags:
   - research
   - social-media
   - content
+source:
+  - name: Shoshin · intelligence-seed（热点情报种子，每周刷新外部知识源）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/intelligence-seed
+  - name: Loopy AI · creative-content-generation（创意内容研究与生成能力）
+    url: https://github.com/Construct-AI-primary/agent-companies-core/tree/main/companies/loopy-ai
+  - name: Shoshin · knowledge-base（结构化知识库，支撑竞品与话题研究）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/knowledge-base
 ---
 
 # 内容研究技能

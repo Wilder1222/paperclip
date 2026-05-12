@@ -6,6 +6,13 @@ tags:
   - douyin
   - xiaohongshu
   - social-media
+source:
+  - name: Shoshin · tiktok-playbook（TikTok 平台算法、内容结构、发布规范）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/tiktok-playbook
+  - name: Shoshin · instagram-playbook（Instagram 平台规则，图文 carousel 结构参考）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/instagram-playbook
+  - name: Shoshin · x-playbook（X/Twitter 平台操作规范，短文本内容逻辑参考）
+    url: https://github.com/00PZ/oopz-inc/tree/main/companies/shoshin/skills/x-playbook
 ---
 
 # 平台运营手册技能
