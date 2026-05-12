@@ -2978,7 +2978,10 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
     };
     const apiBase = gitHubApiBase(parsed.hostname);
     const tree = await fetchJson<{ tree?: Array<{ path: string; type: string }> }>(
-      `${apiBase}/repos/${parsed.owner}/${parsed.repo}/git/trees/${ref}?recursive=1`,
+      // encodeURIComponent is required so that branch names containing slashes
+      // (e.g. "copilot/design-organizational-structure") are treated as a single
+      // path segment by the GitHub API router rather than being split on "/".
+      `${apiBase}/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`,
     ).catch(() => ({ tree: [] }));
     const basePrefix = parsed.basePath ? `${parsed.basePath.replace(/^\/+|\/+$/g, "")}/` : "";
     const candidatePaths = (tree.tree ?? [])
