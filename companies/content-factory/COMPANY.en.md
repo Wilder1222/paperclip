@@ -66,7 +66,8 @@ This company exists not merely to publish content but to **establish an authenti
 
 ### Organisational Design Principles
 
-The company uses a **pipeline + dual reporting-line** architecture:
+The company uses a **project-based + pipeline + dual reporting-line** architecture:
+- **Project operating line** (CEO-owned): platform operations and IP building are organised and executed by projects, with resources and cadence managed per project goals
 - **Content production line** (strategy-lead owns): Topic → Script → Production, three roles in parallel with strategy-lead as the quality gate
 - **Operations decision line** (CEO owns): Publishing, data, and strategy — three roles report directly to the CEO
 
