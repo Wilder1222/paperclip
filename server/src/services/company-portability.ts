@@ -2782,7 +2782,7 @@ export async function resolveGitHubSourceUrlRefWithSlashes(
     if (!ref || !repoPath) continue;
 
     const probePath = kind === "tree" ? `${repoPath}/COMPANY.md` : repoPath;
-    if (!await probeExists(ref, probePath)) continue;
+    if (!(await probeExists(ref, probePath))) continue;
 
     if (kind === "tree") {
       return {
@@ -2794,6 +2794,9 @@ export async function resolveGitHubSourceUrlRefWithSlashes(
     }
 
     const basePath = path.posix.dirname(repoPath);
+    // Blob URLs point to a specific file path, so keep companyPath as the full
+    // repository-relative markdown path to preserve compatibility with existing
+    // blob import behavior.
     return {
       ...parsed,
       ref,
