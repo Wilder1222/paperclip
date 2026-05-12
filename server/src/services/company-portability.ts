@@ -119,6 +119,8 @@ const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
   issues: false,
   skills: false,
 };
+const COMPANY_MARKDOWN_FILENAME = "COMPANY.md";
+const MAX_GITHUB_REF_PROBE_SPLITS = 12;
 
 const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename";
 const IMPORT_FORBIDDEN_ADAPTER_TYPES = new Set(["process", "http"]);
@@ -2756,6 +2758,66 @@ export function parseGitHubSourceUrl(rawUrl: string) {
   return { hostname, owner, repo, ref, basePath, companyPath };
 }
 
+type ParsedGitHubSource = ReturnType<typeof parseGitHubSourceUrl>;
+
+export async function resolveGitHubSourceUrlRefWithSlashes(
+  rawUrl: string,
+  parsed: ParsedGitHubSource,
+  probeExists: (ref: string, repoPath: string) => Promise<boolean>,
+): Promise<ParsedGitHubSource> {
+  const url = new URL(rawUrl);
+  const queryRef = url.searchParams.get("ref")?.trim();
+  const queryPath = normalizeGitHubSourcePath(url.searchParams.get("path"));
+  const queryCompanyPath = normalizeGitHubSourcePath(url.searchParams.get("companyPath"));
+  if (queryRef || queryPath || queryCompanyPath) return parsed;
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts.length < 5) return parsed;
+  const kind = parts[2];
+  if (kind !== "tree" && kind !== "blob") return parsed;
+  const refAndPathSegments = parts.slice(3);
+  if (refAndPathSegments.length < 2) return parsed;
+
+  const parsedProbePath = kind === "tree"
+    ? [parsed.basePath, COMPANY_MARKDOWN_FILENAME].filter(Boolean).join("/")
+    : parsed.companyPath;
+  if (parsed.ref && parsedProbePath && await probeExists(parsed.ref, parsedProbePath)) {
+    return parsed;
+  }
+
+  const minSplit = Math.max(1, refAndPathSegments.length - MAX_GITHUB_REF_PROBE_SPLITS);
+  for (let split = refAndPathSegments.length - 1; split >= minSplit; split -= 1) {
+    const ref = refAndPathSegments.slice(0, split).join("/");
+    const repoPath = refAndPathSegments.slice(split).join("/");
+    if (!ref || !repoPath) continue;
+
+    const probePath = kind === "tree" ? `${repoPath}/${COMPANY_MARKDOWN_FILENAME}` : repoPath;
+    if (!(await probeExists(ref, probePath))) continue;
+
+    if (kind === "tree") {
+      return {
+        ...parsed,
+        ref,
+        basePath: repoPath,
+        companyPath: COMPANY_MARKDOWN_FILENAME,
+      };
+    }
+
+    const basePath = path.posix.dirname(repoPath);
+    // Blob URLs point to a specific file path, so keep companyPath as the full
+    // repository-relative markdown path to preserve compatibility with existing
+    // blob import behavior.
+    return {
+      ...parsed,
+      ref,
+      basePath: basePath === "." ? "" : basePath,
+      companyPath: repoPath,
+    };
+  }
+
+  return parsed;
+}
+
 
 export function companyPortabilityService(db: Db, storage?: StorageService) {
   const companies = companyService(db);
@@ -2862,11 +2924,31 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       );
     }
 
-    const parsed = parseGitHubSourceUrl(source.url);
+    const parsedInitial = parseGitHubSourceUrl(source.url);
+    const parsed = await resolveGitHubSourceUrlRefWithSlashes(
+      source.url,
+      parsedInitial,
+      async (refCandidate, repoPath) => {
+        const rawUrl = resolveRawGitHubUrl(
+          parsedInitial.hostname,
+          parsedInitial.owner,
+          parsedInitial.repo,
+          refCandidate,
+          repoPath,
+        );
+        try {
+          return (await fetchOptionalText(rawUrl)) !== null;
+        } catch {
+          // Probe calls are best-effort; failures here should not block other
+          // candidate ref/path combinations from being tested.
+          return false;
+        }
+      },
+    );
     let ref = parsed.ref;
     const warnings: string[] = [];
-    const companyRelativePath = parsed.companyPath === "COMPANY.md"
-      ? [parsed.basePath, "COMPANY.md"].filter(Boolean).join("/")
+    const companyRelativePath = parsed.companyPath === COMPANY_MARKDOWN_FILENAME
+      ? [parsed.basePath, COMPANY_MARKDOWN_FILENAME].filter(Boolean).join("/")
       : parsed.companyPath;
     let companyMarkdown: string | null = null;
     try {
@@ -2888,15 +2970,18 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       throw unprocessable("GitHub company package is missing COMPANY.md");
     }
 
-    const companyPath = parsed.companyPath === "COMPANY.md"
-      ? "COMPANY.md"
+    const companyPath = parsed.companyPath === COMPANY_MARKDOWN_FILENAME
+      ? COMPANY_MARKDOWN_FILENAME
       : normalizePortablePath(path.posix.relative(parsed.basePath || ".", parsed.companyPath));
     const files: Record<string, CompanyPortabilityFileEntry> = {
       [companyPath]: companyMarkdown,
     };
     const apiBase = gitHubApiBase(parsed.hostname);
     const tree = await fetchJson<{ tree?: Array<{ path: string; type: string }> }>(
-      `${apiBase}/repos/${parsed.owner}/${parsed.repo}/git/trees/${ref}?recursive=1`,
+      // encodeURIComponent is required so that branch names containing slashes
+      // (e.g. "copilot/design-organizational-structure") are treated as a single
+      // path segment by the GitHub API router rather than being split on "/".
+      `${apiBase}/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`,
     ).catch(() => ({ tree: [] }));
     const basePrefix = parsed.basePath ? `${parsed.basePath.replace(/^\/+|\/+$/g, "")}/` : "";
     const candidatePaths = (tree.tree ?? [])

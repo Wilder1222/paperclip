@@ -113,7 +113,11 @@ vi.mock("../routes/org-chart-svg.js", () => ({
   renderOrgChartPng: vi.fn(async () => Buffer.from("png")),
 }));
 
-const { companyPortabilityService, parseGitHubSourceUrl } = await import("../services/company-portability.js");
+const {
+  companyPortabilityService,
+  parseGitHubSourceUrl,
+  resolveGitHubSourceUrlRefWithSlashes,
+} = await import("../services/company-portability.js");
 
 function asTextFile(entry: CompanyPortabilityFileEntry | undefined) {
   expect(typeof entry).toBe("string");
@@ -123,6 +127,26 @@ function asTextFile(entry: CompanyPortabilityFileEntry | undefined) {
 describe("company portability", () => {
   const paperclipKey = "paperclipai/paperclip/paperclip";
   const companyPlaybookKey = "company/company-1/company-playbook";
+
+  async function readPackageFiles(rootDir: string): Promise<Record<string, string>> {
+    const files: Record<string, string> = {};
+
+    async function walk(currentDir: string) {
+      const entries = await fs.readdir(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const absolutePath = path.join(currentDir, entry.name);
+        if (entry.isDirectory()) {
+          await walk(absolutePath);
+          continue;
+        }
+        const relativePath = path.relative(rootDir, absolutePath).replace(/\\/g, "/");
+        files[relativePath] = await fs.readFile(absolutePath, "utf8");
+      }
+    }
+
+    await walk(rootDir);
+    return files;
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -415,6 +439,50 @@ describe("company portability", () => {
       ref: "abc123",
       basePath: "gstack",
       companyPath: "gstack/COMPANY.md",
+    });
+  });
+
+  it("resolves tree URLs that use branch names with slashes", async () => {
+    const rawUrl = "https://github.com/Wilder1222/paperclip/tree/copilot/design-organizational-structure/companies/content-factory";
+    const parsed = parseGitHubSourceUrl(rawUrl);
+
+    const resolved = await resolveGitHubSourceUrlRefWithSlashes(
+      rawUrl,
+      parsed,
+      async (ref, repoPath) =>
+        ref === "copilot/design-organizational-structure"
+        && repoPath === "companies/content-factory/COMPANY.md",
+    );
+
+    expect(resolved).toEqual({
+      hostname: "github.com",
+      owner: "Wilder1222",
+      repo: "paperclip",
+      ref: "copilot/design-organizational-structure",
+      basePath: "companies/content-factory",
+      companyPath: "COMPANY.md",
+    });
+  });
+
+  it("resolves blob URLs that use branch names with slashes", async () => {
+    const rawUrl = "https://github.com/Wilder1222/paperclip/blob/copilot/design-organizational-structure/companies/content-factory/COMPANY.md";
+    const parsed = parseGitHubSourceUrl(rawUrl);
+
+    const resolved = await resolveGitHubSourceUrlRefWithSlashes(
+      rawUrl,
+      parsed,
+      async (ref, repoPath) =>
+        ref === "copilot/design-organizational-structure"
+        && repoPath === "companies/content-factory/COMPANY.md",
+    );
+
+    expect(resolved).toEqual({
+      hostname: "github.com",
+      owner: "Wilder1222",
+      repo: "paperclip",
+      ref: "copilot/design-organizational-structure",
+      basePath: "companies/content-factory",
+      companyPath: "companies/content-factory/COMPANY.md",
     });
   });
 
@@ -2051,6 +2119,66 @@ describe("company portability", () => {
     expect(companySvc.update).toHaveBeenCalledWith("company-imported", {
       logoAssetId: "asset-created",
     });
+  });
+
+  it("previews the content-factory company package without import errors", async () => {
+    const portability = companyPortabilityService({} as any);
+    const packageRoot = path.resolve(process.cwd(), "companies/content-factory");
+    const files = await readPackageFiles(packageRoot);
+
+    const preview = await portability.previewImport({
+      source: {
+        type: "inline",
+        rootPath: "content-factory",
+        files,
+      },
+      include: {
+        company: true,
+        agents: true,
+        projects: true,
+        issues: true,
+        skills: false,
+      },
+      target: {
+        mode: "new_company",
+        newCompanyName: "Content Factory",
+      },
+      agents: "all",
+      collisionStrategy: "rename",
+    });
+
+    expect(preview.errors).toEqual([]);
+    expect(preview.manifest.company).toEqual(expect.objectContaining({
+      path: "COMPANY.md",
+      name: "自媒体内容工厂",
+      description: expect.stringContaining("AI 独立开发者"),
+    }));
+    expect(preview.manifest.agents).toHaveLength(7);
+    expect(preview.manifest.projects.map((project) => project.slug).sort()).toEqual([
+      "cold-start-growth",
+      "content-factory-v1",
+    ]);
+    expect(
+      preview.manifest.issues
+        .filter((issue) => issue.recurring)
+        .map((issue) => ({
+          slug: issue.slug,
+          projectSlug: issue.projectSlug,
+          assigneeAgentSlug: issue.assigneeAgentSlug,
+        }))
+        .sort((left, right) => left.slug.localeCompare(right.slug)),
+    ).toEqual([
+      {
+        slug: "weekly-analytics-review",
+        projectSlug: "content-factory-v1",
+        assigneeAgentSlug: "growth-analyst",
+      },
+      {
+        slug: "weekly-content-planning",
+        projectSlug: "content-factory-v1",
+        assigneeAgentSlug: "trend-researcher",
+      },
+    ]);
   });
 
   it("copies source company memberships for safe new-company imports", async () => {
