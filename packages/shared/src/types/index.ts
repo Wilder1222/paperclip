@@ -62,6 +62,16 @@ export type {
     CompanySkillFileUpdateRequest,
 } from "./company-skill.js";
 export type {
+    CompanyStaffSourceType,
+    CompanyStaffBenchStatus,
+    CompanyStaffSource,
+    CompanyStaffBenchEntry,
+    CompanyStaffBenchCreateRequest,
+    CompanyStaffBenchUpdateRequest,
+    CompanyStaffBenchActivationRequest,
+    CompanyStaffBenchActivationResult,
+} from "./company-staff.js";
+export type {
     AgentSkillSyncMode,
     AgentSkillState,
     AgentSkillOrigin,

@@ -119,6 +119,11 @@ type ParsedSkillImportSource = {
   warnings: string[];
 };
 
+type GitHubRawSkillFallbackResult = {
+  skill: ImportedSkill;
+  warning: string;
+};
+
 type SkillSourceMeta = {
   skillKey?: string;
   sourceKind?: string;
@@ -548,6 +553,15 @@ async function fetchText(url: string) {
   return response.text();
 }
 
+async function fetchOptionalText(url: string) {
+  const response = await ghFetch(url);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw unprocessable(`Failed to fetch ${url}: ${response.status}`);
+  }
+  return response.text();
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await ghFetch(url, {
     headers: {
@@ -607,6 +621,26 @@ function parseGitHubSourceUrl(rawUrl: string) {
   return { hostname: url.hostname, owner, repo, ref, basePath, filePath, explicitRef };
 }
 
+function parseGitHubRepositorySource(rawUrl: string) {
+  try {
+    const parsed = parseGitHubSourceUrl(rawUrl);
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname !== "github.com" && hostname !== "www.github.com") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildSkillsShUrlFromGitHubSource(sourceUrl: string, skillSlug: string | null) {
+  if (!skillSlug) return null;
+  const parsed = parseGitHubRepositorySource(sourceUrl);
+  if (!parsed || parsed.basePath || parsed.filePath) return null;
+  return `https://skills.sh/${parsed.owner}/${parsed.repo}/${skillSlug}`;
+}
+
 async function resolveGitHubPinnedRef(parsed: ReturnType<typeof parseGitHubSourceUrl>) {
   const apiBase = gitHubApiBase(parsed.hostname);
   if (/^[0-9a-f]{40}$/i.test(parsed.ref.trim())) {
@@ -639,7 +673,8 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
   let source = trimmed;
   let requestedSkillSlug: string | null = null;
 
-  if (/^npx\s+skills\s+add\s+/i.test(trimmed)) {
+  const isSkillsAddCommand = /^npx\s+skills\s+add\s+/i.test(trimmed);
+  if (isSkillsAddCommand) {
     const tokens = extractCommandTokens(trimmed);
     const addIndex = tokens.findIndex(
       (token, index) =>
@@ -667,6 +702,9 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
   if (!normalizedSource) {
     throw unprocessable("Skill source is required.");
   }
+  const npxSkillsShUrl = isSkillsAddCommand
+    ? buildSkillsShUrlFromGitHubSource(normalizedSource, requestedSkillSlug)
+    : null;
 
   // Key-style imports (org/repo/skill) originate from the skills.sh registry
   if (!/^https?:\/\//i.test(normalizedSource) && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(normalizedSource)) {
@@ -683,7 +721,9 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
     return {
       resolvedSource: `https://github.com/${normalizedSource}`,
       requestedSkillSlug,
-      originalSkillsShUrl: null,
+      originalSkillsShUrl: isSkillsAddCommand && requestedSkillSlug
+        ? `https://skills.sh/${normalizedSource}/${requestedSkillSlug}`
+        : null,
       warnings,
     };
   }
@@ -703,7 +743,7 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
   return {
     resolvedSource: normalizedSource,
     requestedSkillSlug,
-    originalSkillsShUrl: null,
+    originalSkillsShUrl: npxSkillsShUrl,
     warnings,
   };
 }
@@ -1046,7 +1086,104 @@ async function readLocalSkillImports(companyId: string, sourcePath: string): Pro
   return imports;
 }
 
-async function readUrlSkillImports(
+function uniquePortablePaths(paths: string[]) {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const rawPath of paths) {
+    const normalized = normalizePortablePath(rawPath);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function candidateGitHubRawSkillDirs(parsed: ReturnType<typeof parseGitHubSourceUrl>, requestedSkillSlug: string) {
+  const basePath = normalizePortablePath(parsed.basePath);
+  if (!basePath) {
+    return uniquePortablePaths([
+      `skills/${requestedSkillSlug}`,
+      requestedSkillSlug,
+      `.agents/skills/${requestedSkillSlug}`,
+    ]);
+  }
+
+  const baseName = normalizeSkillSlug(path.posix.basename(basePath));
+  return uniquePortablePaths([
+    baseName === requestedSkillSlug ? basePath : "",
+    `${basePath}/${requestedSkillSlug}`,
+    `${basePath}/skills/${requestedSkillSlug}`,
+  ]);
+}
+
+function candidateGitHubRawRefs(parsed: ReturnType<typeof parseGitHubSourceUrl>) {
+  return Array.from(new Set(parsed.explicitRef ? [parsed.ref] : [parsed.ref, "master"]));
+}
+
+async function readGitHubRawSkillFallback(
+  companyId: string,
+  sourceUrl: string,
+  requestedSkillSlug: string | null,
+): Promise<GitHubRawSkillFallbackResult | null> {
+  if (!requestedSkillSlug) return null;
+  const parsed = parseGitHubRepositorySource(sourceUrl);
+  if (!parsed || parsed.filePath) return null;
+
+  for (const ref of candidateGitHubRawRefs(parsed)) {
+    for (const skillDir of candidateGitHubRawSkillDirs(parsed, requestedSkillSlug)) {
+      const repoSkillPath = path.posix.join(skillDir, "SKILL.md");
+      const markdown = await fetchOptionalText(
+        resolveRawGitHubUrl(parsed.hostname, parsed.owner, parsed.repo, ref, repoSkillPath),
+      );
+      if (markdown === null) continue;
+
+      const parsedMarkdown = parseFrontmatterMarkdown(markdown);
+      const slug = deriveImportedSkillSlug(parsedMarkdown.frontmatter, requestedSkillSlug);
+      if (slug !== requestedSkillSlug) continue;
+      const skillKey = readCanonicalSkillKey(
+        parsedMarkdown.frontmatter,
+        isPlainRecord(parsedMarkdown.frontmatter.metadata) ? parsedMarkdown.frontmatter.metadata : null,
+      );
+      const metadata = {
+        ...(skillKey ? { skillKey } : {}),
+        sourceKind: "github",
+        owner: parsed.owner,
+        repo: parsed.repo,
+        ref,
+        trackingRef: parsed.explicitRef ? parsed.ref : ref,
+        repoSkillDir: skillDir,
+        rawFallback: true,
+      };
+      const inventory: CompanySkillFileInventoryEntry[] = [{ path: "SKILL.md", kind: "skill" }];
+      return {
+        skill: {
+          key: deriveCanonicalSkillKey(companyId, {
+            slug,
+            sourceType: "github",
+            sourceLocator: sourceUrl,
+            metadata,
+          }),
+          slug,
+          name: asString(parsedMarkdown.frontmatter.name) ?? slug,
+          description: asString(parsedMarkdown.frontmatter.description),
+          markdown,
+          sourceType: "github",
+          sourceLocator: sourceUrl,
+          sourceRef: null,
+          trustLevel: deriveTrustLevel(inventory),
+          compatibility: "compatible",
+          fileInventory: inventory,
+          metadata,
+        },
+        warning: "GitHub API metadata was unavailable, so Paperclip imported SKILL.md directly from the repository.",
+      };
+    }
+  }
+
+  return null;
+}
+
+export async function readUrlSkillImports(
   companyId: string,
   sourceUrl: string,
   requestedSkillSlug: string | null = null,
@@ -1063,6 +1200,7 @@ async function readUrlSkillImports(
   } catch { return false; } })();
   if (looksLikeRepoUrl) {
     const parsed = parseGitHubSourceUrl(url);
+    try {
     const apiBase = gitHubApiBase(parsed.hostname);
     const { pinnedRef, trackingRef } = await resolveGitHubPinnedRef(parsed);
     let ref = pinnedRef;
@@ -1153,6 +1291,16 @@ async function readUrlSkillImports(
       );
     }
     return { skills, warnings };
+    } catch (error) {
+      const fallback = await readGitHubRawSkillFallback(companyId, url, requestedSkillSlug);
+      if (fallback) {
+        return {
+          skills: [fallback.skill],
+          warnings: [...warnings, fallback.warning],
+        };
+      }
+      throw error;
+    }
   }
 
   if (url.startsWith("http://") || url.startsWith("https://")) {
