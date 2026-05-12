@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ensureCodexSkillsInjected } from "@paperclipai/adapter-codex-local/server";
 
 async function makeTempDir(prefix: string): Promise<string> {
@@ -30,14 +30,60 @@ async function createCustomSkill(root: string, skillName: string) {
   );
 }
 
+async function createDirectoryLink(source: string, target: string) {
+  await fs.symlink(source, target, process.platform === "win32" ? "junction" : "dir");
+}
+
 describe("codex local adapter skill injection", () => {
   const paperclipKey = "paperclipai/paperclip/paperclip";
   const createAgentKey = "paperclipai/paperclip/paperclip-create-agent";
   const cleanupDirs = new Set<string>();
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await Promise.all(Array.from(cleanupDirs).map((dir) => fs.rm(dir, { recursive: true, force: true })));
     cleanupDirs.clear();
+  });
+
+  it("copies Codex skills when Windows denies symlink creation", async () => {
+    const currentRepo = await makeTempDir("paperclip-codex-current-");
+    const skillsHome = await makeTempDir("paperclip-codex-home-");
+    cleanupDirs.add(currentRepo);
+    cleanupDirs.add(skillsHome);
+
+    await createPaperclipRepoSkill(currentRepo, "paperclip");
+    vi.spyOn(fs, "symlink").mockRejectedValue(
+      Object.assign(new Error("symlink denied"), { code: "EPERM" }),
+    );
+
+    const logs: Array<{ stream: "stdout" | "stderr"; chunk: string }> = [];
+    await ensureCodexSkillsInjected(
+      async (stream, chunk) => {
+        logs.push({ stream, chunk });
+      },
+      {
+        skillsHome,
+        skillsEntries: [{
+          key: paperclipKey,
+          runtimeName: "paperclip",
+          source: path.join(currentRepo, "skills", "paperclip"),
+        }],
+      },
+    );
+
+    const injected = path.join(skillsHome, "paperclip");
+    expect((await fs.lstat(injected)).isDirectory()).toBe(true);
+    expect((await fs.lstat(injected)).isSymbolicLink()).toBe(false);
+    await expect(fs.readFile(path.join(injected, "SKILL.md"), "utf8")).resolves.toContain(
+      "name: paperclip",
+    );
+    expect(logs.some((entry) => entry.stream === "stderr")).toBe(false);
+    expect(logs).toContainEqual(
+      expect.objectContaining({
+        stream: "stdout",
+        chunk: expect.stringContaining('Injected Codex skill "paperclip"'),
+      }),
+    );
   });
 
   it("repairs a Codex Paperclip skill symlink that still points at another live checkout", async () => {
@@ -51,7 +97,7 @@ describe("codex local adapter skill injection", () => {
     await createPaperclipRepoSkill(currentRepo, "paperclip");
     await createPaperclipRepoSkill(currentRepo, "paperclip-create-agent");
     await createPaperclipRepoSkill(oldRepo, "paperclip");
-    await fs.symlink(path.join(oldRepo, "skills", "paperclip"), path.join(skillsHome, "paperclip"));
+    await createDirectoryLink(path.join(oldRepo, "skills", "paperclip"), path.join(skillsHome, "paperclip"));
 
     const logs: Array<{ stream: "stdout" | "stderr"; chunk: string }> = [];
     await ensureCodexSkillsInjected(
@@ -105,7 +151,7 @@ describe("codex local adapter skill injection", () => {
 
     await createPaperclipRepoSkill(currentRepo, "paperclip");
     await createCustomSkill(customRoot, "paperclip");
-    await fs.symlink(path.join(customRoot, "custom", "paperclip"), path.join(skillsHome, "paperclip"));
+    await createDirectoryLink(path.join(customRoot, "custom", "paperclip"), path.join(skillsHome, "paperclip"));
 
     await ensureCodexSkillsInjected(async () => {}, {
       skillsHome,
@@ -132,7 +178,7 @@ describe("codex local adapter skill injection", () => {
     await createPaperclipRepoSkill(currentRepo, "paperclip");
     await createPaperclipRepoSkill(oldRepo, "agent-browser");
     const staleTarget = path.join(oldRepo, "skills", "agent-browser");
-    await fs.symlink(staleTarget, path.join(skillsHome, "agent-browser"));
+    await createDirectoryLink(staleTarget, path.join(skillsHome, "agent-browser"));
     await fs.rm(staleTarget, { recursive: true, force: true });
 
     const logs: Array<{ stream: "stdout" | "stderr"; chunk: string }> = [];
@@ -169,7 +215,7 @@ describe("codex local adapter skill injection", () => {
 
     await createPaperclipRepoSkill(currentRepo, "paperclip");
     await createPaperclipRepoSkill(currentRepo, "agent-browser");
-    await fs.symlink(
+    await createDirectoryLink(
       path.join(currentRepo, "skills", "agent-browser"),
       path.join(skillsHome, "agent-browser"),
     );

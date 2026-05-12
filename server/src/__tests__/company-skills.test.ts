@@ -1,18 +1,20 @@
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   discoverProjectWorkspaceSkillDirectories,
   findMissingLocalSkillIds,
   normalizeGitHubSkillDirectory,
   parseSkillImportSourceInput,
   readLocalSkillImportFromDirectory,
+  readUrlSkillImports,
 } from "../services/company-skills.js";
 
 const cleanupDirs = new Set<string>();
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await Promise.all(Array.from(cleanupDirs, (dir) => fs.rm(dir, { recursive: true, force: true })));
   cleanupDirs.clear();
 });
@@ -36,7 +38,7 @@ describe("company skill import source parsing", () => {
 
     expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
     expect(parsed.requestedSkillSlug).toBe("find-skills");
-    expect(parsed.originalSkillsShUrl).toBeNull();
+    expect(parsed.originalSkillsShUrl).toBe("https://skills.sh/vercel-labs/skills/find-skills");
     expect(parsed.warnings).toEqual([]);
   });
 
@@ -75,7 +77,17 @@ describe("company skill import source parsing", () => {
 
     expect(parsed.resolvedSource).toBe("https://github.com/remotion-dev/skills");
     expect(parsed.requestedSkillSlug).toBe("remotion-best-practices");
-    expect(parsed.originalSkillsShUrl).toBeNull();
+    expect(parsed.originalSkillsShUrl).toBe("https://skills.sh/remotion-dev/skills/remotion-best-practices");
+  });
+
+  it("parses shorthand skills.sh commands as skills.sh-managed", () => {
+    const parsed = parseSkillImportSourceInput(
+      "npx skills add vercel-labs/skills --skill find-skills",
+    );
+
+    expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
+    expect(parsed.requestedSkillSlug).toBe("find-skills");
+    expect(parsed.originalSkillsShUrl).toBe("https://skills.sh/vercel-labs/skills/find-skills");
   });
 
   it("does not set originalSkillsShUrl for owner/repo shorthand", () => {
@@ -83,6 +95,49 @@ describe("company skill import source parsing", () => {
 
     expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
     expect(parsed.originalSkillsShUrl).toBeNull();
+  });
+});
+
+describe("company skill GitHub imports", () => {
+  it("falls back to raw SKILL.md for skills.sh-style imports when GitHub API metadata is forbidden", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.includes("api.github.com/repos/vercel-labs/skills")) {
+        return new Response("forbidden", { status: 403 });
+      }
+      if (url === "https://raw.githubusercontent.com/vercel-labs/skills/main/skills/find-skills/SKILL.md") {
+        return new Response("---\nname: Find Skills\n---\n\n# Find Skills\n", { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    }));
+
+    const result = await readUrlSkillImports(
+      "33333333-3333-4333-8333-333333333333",
+      "https://github.com/vercel-labs/skills",
+      "find-skills",
+    );
+
+    expect(result.skills).toHaveLength(1);
+    expect(result.skills[0]).toMatchObject({
+      slug: "find-skills",
+      name: "Find Skills",
+      sourceType: "github",
+      sourceLocator: "https://github.com/vercel-labs/skills",
+      sourceRef: null,
+      fileInventory: [{ path: "SKILL.md", kind: "skill" }],
+      metadata: {
+        owner: "vercel-labs",
+        repo: "skills",
+        repoSkillDir: "skills/find-skills",
+        rawFallback: true,
+      },
+    });
+    expect(result.warnings).toEqual([
+      "GitHub API metadata was unavailable, so Paperclip imported SKILL.md directly from the repository.",
+    ]);
+    expect(calls).toContain("https://raw.githubusercontent.com/vercel-labs/skills/main/skills/find-skills/SKILL.md");
   });
 });
 

@@ -193,6 +193,43 @@ type EnsureCodexSkillsInjectedOptions = {
   linkSkill?: (source: string, target: string) => Promise<void>;
 };
 
+const COPIED_CODEX_SKILL_SOURCE_MARKER = ".paperclip-copied-skill-source";
+
+function isSymlinkPrivilegeError(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException).code;
+  return code === "EPERM" || code === "EACCES";
+}
+
+async function copyCodexSkillDirectory(source: string, target: string): Promise<void> {
+  await fs.cp(source, target, {
+    recursive: true,
+    force: true,
+    errorOnExist: false,
+  });
+  await fs.writeFile(
+    path.join(target, COPIED_CODEX_SKILL_SOURCE_MARKER),
+    `${source}\n`,
+    "utf8",
+  );
+}
+
+async function linkOrCopyCodexSkill(source: string, target: string): Promise<void> {
+  try {
+    await fs.symlink(source, target, process.platform === "win32" ? "junction" : "dir");
+  } catch (err) {
+    if (!isSymlinkPrivilegeError(err)) throw err;
+    await copyCodexSkillDirectory(source, target);
+  }
+}
+
+async function isCopiedCodexSkill(target: string): Promise<boolean> {
+  const marker = await fs.readFile(
+    path.join(target, COPIED_CODEX_SKILL_SOURCE_MARKER),
+    "utf8",
+  ).catch(() => "");
+  return marker.trim().length > 0;
+}
+
 type CodexTransientFallbackMode =
   | "same_session"
   | "safer_invocation"
@@ -252,7 +289,7 @@ export async function ensureCodexSkillsInjected(
 
   const skillsHome = options.skillsHome ?? resolveCodexSkillsDir(resolveSharedCodexHomeDir());
   await fs.mkdir(skillsHome, { recursive: true });
-  const linkSkill = options.linkSkill;
+  const linkSkill = options.linkSkill ?? linkOrCopyCodexSkill;
   for (const entry of skillsEntries) {
     const target = path.join(skillsHome, entry.runtimeName);
 
@@ -269,17 +306,23 @@ export async function ensureCodexSkillsInjected(
           (await isLikelyPaperclipRuntimeSkillPath(resolvedLinkedPath, entry.runtimeName))
         ) {
           await fs.unlink(target);
-          if (linkSkill) {
-            await linkSkill(entry.source, target);
-          } else {
-            await fs.symlink(entry.source, target);
-          }
+          await linkSkill(entry.source, target);
           await onLog(
             "stdout",
             `[paperclip] Repaired Codex skill "${entry.runtimeName}" into ${skillsHome}\n`,
           );
           continue;
         }
+      }
+
+      if (existing?.isDirectory() && await isCopiedCodexSkill(target)) {
+        await fs.rm(target, { recursive: true, force: true });
+        await linkSkill(entry.source, target);
+        await onLog(
+          "stdout",
+          `[paperclip] Repaired Codex skill "${entry.runtimeName}" into ${skillsHome}\n`,
+        );
+        continue;
       }
 
       const result = await ensurePaperclipSkillSymlink(entry.source, target, linkSkill);
