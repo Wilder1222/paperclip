@@ -119,6 +119,8 @@ const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
   issues: false,
   skills: false,
 };
+const COMPANY_MARKDOWN_FILENAME = "COMPANY.md";
+const MAX_GITHUB_REF_PROBE_SPLITS = 12;
 
 const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename";
 const IMPORT_FORBIDDEN_ADAPTER_TYPES = new Set(["process", "http"]);
@@ -2776,12 +2778,20 @@ export async function resolveGitHubSourceUrlRefWithSlashes(
   const refAndPathSegments = parts.slice(3);
   if (refAndPathSegments.length < 2) return parsed;
 
-  for (let split = refAndPathSegments.length - 1; split >= 1; split -= 1) {
+  const parsedProbePath = kind === "tree"
+    ? [parsed.basePath, COMPANY_MARKDOWN_FILENAME].filter(Boolean).join("/")
+    : parsed.companyPath;
+  if (parsed.ref && parsedProbePath && await probeExists(parsed.ref, parsedProbePath)) {
+    return parsed;
+  }
+
+  const minSplit = Math.max(1, refAndPathSegments.length - MAX_GITHUB_REF_PROBE_SPLITS);
+  for (let split = refAndPathSegments.length - 1; split >= minSplit; split -= 1) {
     const ref = refAndPathSegments.slice(0, split).join("/");
     const repoPath = refAndPathSegments.slice(split).join("/");
     if (!ref || !repoPath) continue;
 
-    const probePath = kind === "tree" ? `${repoPath}/COMPANY.md` : repoPath;
+    const probePath = kind === "tree" ? `${repoPath}/${COMPANY_MARKDOWN_FILENAME}` : repoPath;
     if (!(await probeExists(ref, probePath))) continue;
 
     if (kind === "tree") {
@@ -2789,7 +2799,7 @@ export async function resolveGitHubSourceUrlRefWithSlashes(
         ...parsed,
         ref,
         basePath: repoPath,
-        companyPath: "COMPANY.md",
+        companyPath: COMPANY_MARKDOWN_FILENAME,
       };
     }
 
@@ -2929,14 +2939,16 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
         try {
           return (await fetchOptionalText(rawUrl)) !== null;
         } catch {
+          // Probe calls are best-effort; failures here should not block other
+          // candidate ref/path combinations from being tested.
           return false;
         }
       },
     );
     let ref = parsed.ref;
     const warnings: string[] = [];
-    const companyRelativePath = parsed.companyPath === "COMPANY.md"
-      ? [parsed.basePath, "COMPANY.md"].filter(Boolean).join("/")
+    const companyRelativePath = parsed.companyPath === COMPANY_MARKDOWN_FILENAME
+      ? [parsed.basePath, COMPANY_MARKDOWN_FILENAME].filter(Boolean).join("/")
       : parsed.companyPath;
     let companyMarkdown: string | null = null;
     try {
@@ -2958,8 +2970,8 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       throw unprocessable("GitHub company package is missing COMPANY.md");
     }
 
-    const companyPath = parsed.companyPath === "COMPANY.md"
-      ? "COMPANY.md"
+    const companyPath = parsed.companyPath === COMPANY_MARKDOWN_FILENAME
+      ? COMPANY_MARKDOWN_FILENAME
       : normalizePortablePath(path.posix.relative(parsed.basePath || ".", parsed.companyPath));
     const files: Record<string, CompanyPortabilityFileEntry> = {
       [companyPath]: companyMarkdown,
