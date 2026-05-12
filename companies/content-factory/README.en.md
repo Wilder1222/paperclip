@@ -1,6 +1,6 @@
 # Content Factory
 
-> **Strategic Mission: Build a sustainably growing knowledge-based personal IP, accumulate professional influence through a dual-platform content matrix, and create a complete monetisation loop from content exposure to paid knowledge products.**
+> **Strategic Mission: Build a sustainably growing knowledge-based personal IP, accumulate professional influence through a dual-platform content matrix, and achieve sustained follower growth across both platforms.**
 
 An AI-agent-driven knowledge-IP company for an AI indie developer covering Douyin + Xiaohongshu; it operates as a social-media operations company where platform operations and IP building are organised by projects, consistently sharing AI content, knowledge, and hands-on experience through a standardised pipeline and iterating through data.
 
@@ -13,7 +13,7 @@ This company exists not merely to publish content but to **establish an authenti
 | Mission | Build a knowledge-based personal IP — become the trusted expert voice in the vertical |
 | Brand | Dual-platform professional image (rapid recognition on Douyin + deep reputation on Xiaohongshu) |
 | Content | 20-piece-per-week pipeline — consistent supply is the foundation of trust with algorithm and audience |
-| Monetisation | Content → DM → paid consulting / community / course |
+| Growth | Content exposure → audience trust → follower accumulation |
 
 ## 90-Day OKRs
 
@@ -22,7 +22,6 @@ This company exists not merely to publish content but to **establish an authenti
 | KR1 (Growth) | Net new followers across both platforms | 20 k |
 | KR2 (Output) | Pieces published per week | 20 / week |
 | KR3 (Quality) | Viral rate | ≥ 15% |
-| KR4 (Monetisation) | Paid-knowledge path | At least 1 live |
 
 ---
 

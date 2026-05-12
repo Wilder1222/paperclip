@@ -62,7 +62,6 @@ Reusable elements: [specific sentence / structure / topic]
 Target A (Growth): this week +X followers, cumulative X, completion rate X%
 Target B (Output): this week published X pieces, on-track: yes/no
 Target C (Quality): viral rate X%, meets 15% threshold: yes/no
-Target D (Monetisation): [private-domain leads / paid consulting / course sales]
 
 [Next-Week Strategy Recommendations]
 
