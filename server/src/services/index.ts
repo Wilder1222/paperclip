@@ -1,23 +1,24 @@
 export { companyService } from "./companies.js";
 export { feedbackService } from "./feedback.js";
 export { companySkillService } from "./company-skills.js";
+export { companyStaffService } from "./company-staff.js";
 export { agentService, deduplicateAgentName } from "./agents.js";
 export { agentInstructionsService, syncInstructionsBundleConfigFromFilePath } from "./agent-instructions.js";
 export { assetService } from "./assets.js";
 export { documentService, extractLegacyPlanBody } from "./documents.js";
 export {
-  ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY,
-  buildContinuationSummaryMarkdown,
-  getIssueContinuationSummaryDocument,
-  refreshIssueContinuationSummary,
+    ISSUE_CONTINUATION_SUMMARY_DOCUMENT_KEY,
+    buildContinuationSummaryMarkdown,
+    getIssueContinuationSummaryDocument,
+    refreshIssueContinuationSummary,
 } from "./issue-continuation-summary.js";
 export { projectService } from "./projects.js";
 export {
-  clampIssueListLimit,
-  ISSUE_LIST_DEFAULT_LIMIT,
-  ISSUE_LIST_MAX_LIMIT,
-  issueService,
-  type IssueFilters,
+    clampIssueListLimit,
+    ISSUE_LIST_DEFAULT_LIMIT,
+    ISSUE_LIST_MAX_LIMIT,
+    issueService,
+    type IssueFilters,
 } from "./issues.js";
 export { issueThreadInteractionService } from "./issue-thread-interactions.js";
 export { issueTreeControlService } from "./issue-tree-control.js";
@@ -33,8 +34,8 @@ export { costService } from "./costs.js";
 export { financeService } from "./finance.js";
 export { heartbeatService } from "./heartbeat.js";
 export {
-  productivityReviewService,
-  PRODUCTIVITY_REVIEW_ORIGIN_KIND,
+    productivityReviewService,
+    PRODUCTIVITY_REVIEW_ORIGIN_KIND,
 } from "./productivity-review.js";
 export { classifyIssueGraphLiveness, type IssueLivenessFinding } from "./recovery/index.js";
 export { dashboardService } from "./dashboard.js";
